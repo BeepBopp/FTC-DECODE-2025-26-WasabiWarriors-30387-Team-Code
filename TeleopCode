@@ -6,8 +6,8 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 
-@TeleOp(name = "TestingDECODERobot")
-public class TestingDECODERobot extends LinearOpMode {
+@TeleOp(name = "DECODETeleop")
+public class DECODETeleop extends LinearOpMode {
     final double LEFT_LAUNCH_POWER = 0.7;
     final double RIGHT_LAUNCH_POWER = 0.65;
     final double INTAKE_POWER = 1;

@@ -1,28 +1,29 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 @TeleOp(name = "DECODETeleop")
 public class DECODETeleop extends LinearOpMode {
+
+    final double DRIVETRAIN_SPEED = 0.8;
     final double LEFT_LAUNCH_POWER = 0.7;
     final double RIGHT_LAUNCH_POWER = 0.65;
     final double INTAKE_POWER = 1;
     final double STOP_POWER = 0;
+    final double LEFT_BRINGUP_POS = 0.95;
+    final double RIGHT_BRINGUP_POS = 0.04;
+    final double REST_POS = 0.5;
 
-    private DcMotor leftFrontDrive = null;
-    private DcMotor rightFrontDrive = null;
-    private DcMotor leftBackDrive = null;
-    private DcMotor rightBackDrive = null;
-    private DcMotor leftShooter = null;
-    private DcMotor rightShooter = null;
-    private DcMotor intake = null;
-    
-    private Servo leftBringUp = null;
-    private Servo rightBringUp = null;
+    private DcMotor leftFrontDrive, rightFrontDrive, leftBackDrive, rightBackDrive;
+    private DcMotor leftShooter, rightShooter, intake;
+    private Servo leftBringUp, rightBringUp;
+
+    private ElapsedTime timer = new ElapsedTime();
+    private boolean shooting = false;
 
     @Override
     public void runOpMode() {
@@ -33,18 +34,13 @@ public class DECODETeleop extends LinearOpMode {
         leftShooter = hardwareMap.get(DcMotor.class, "leftShooter");
         rightShooter = hardwareMap.get(DcMotor.class, "rightShooter");
         intake = hardwareMap.get(DcMotor.class, "intake");
-        
         leftBringUp = hardwareMap.get(Servo.class, "leftBringUp");
         rightBringUp = hardwareMap.get(Servo.class, "rightBringUp");
-        
+
         leftFrontDrive.setDirection(DcMotor.Direction.REVERSE);
         leftBackDrive.setDirection(DcMotor.Direction.REVERSE);
-        rightFrontDrive.setDirection(DcMotor.Direction.REVERSE);
-        rightBackDrive.setDirection(DcMotor.Direction.REVERSE);
-        
         intake.setDirection(DcMotor.Direction.REVERSE);
         leftShooter.setDirection(DcMotor.Direction.REVERSE);
-        rightShooter.setDirection(DcMotor.Direction.FORWARD);
 
         leftFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -56,33 +52,55 @@ public class DECODETeleop extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            double y = -gamepad1.right_stick_y;  
-            double x = gamepad1.right_stick_x * 1.1;  
-            double rx = gamepad1.left_stick_x;  
-        
+            double y = -gamepad2.right_stick_y;
+            double x = gamepad2.right_stick_x * 1.1;
+            double rx = gamepad2.left_stick_x;
+
             double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
             double leftFrontPower = (y + x + rx) / denominator;
             double leftBackPower = (y - x + rx) / denominator;
             double rightFrontPower = (y - x - rx) / denominator;
             double rightBackPower = (y + x - rx) / denominator;
-        
-            leftFrontDrive.setPower(leftFrontPower);
-            leftBackDrive.setPower(leftBackPower);
-            rightFrontDrive.setPower(rightFrontPower);
-            rightBackDrive.setPower(rightBackPower);
 
-            if (gamepad1.x) {
+            leftFrontDrive.setPower(leftFrontPower * DRIVETRAIN_SPEED);
+            leftBackDrive.setPower(leftBackPower * DRIVETRAIN_SPEED);
+            rightFrontDrive.setPower(rightFrontPower * DRIVETRAIN_SPEED);
+            rightBackDrive.setPower(rightBackPower * DRIVETRAIN_SPEED);
+
+            if (gamepad1.x && !shooting) {
+                shooting = true;
+                timer.reset();
                 leftShooter.setPower(LEFT_LAUNCH_POWER);
                 rightShooter.setPower(RIGHT_LAUNCH_POWER);
-            } else if (gamepad1.y) {
+                intake.setPower(STOP_POWER);
+            }
+
+            if (shooting) {
+                
+                double t = timer.seconds();
+                if (t >= 3 && t < 4) {
+                    leftBringUp.setPosition(LEFT_BRINGUP_POS);
+                    rightBringUp.setPosition(RIGHT_BRINGUP_POS);
+                }
+                if (t >= 4) {
+                    leftBringUp.setPosition(REST_POS);
+                    rightBringUp.setPosition(REST_POS);
+                    shooting = false;
+                }
+            }
+
+            if (gamepad1.b) {
                 leftShooter.setPower(STOP_POWER);
                 rightShooter.setPower(STOP_POWER);
-            } else if (gamepad1.left_bumper) {
+                leftBringUp.setPosition(REST_POS);
+                rightBringUp.setPosition(REST_POS);
+                shooting = false;
+            }
+
+            if (gamepad1.left_bumper && !shooting) {
                 intake.setPower(INTAKE_POWER);
             } else if (gamepad1.right_bumper) {
                 intake.setPower(STOP_POWER);
-            } else if (gamepad1.dpad_left) {
-                rightBringUp.setPosition(1); 
             }
         }
     }

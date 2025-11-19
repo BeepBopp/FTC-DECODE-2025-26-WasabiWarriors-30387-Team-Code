@@ -10,7 +10,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 public class DECODETeleop extends LinearOpMode {
 
     final double DRIVETRAIN_SPEED = 0.8;
-    final double LEFT_LAUNCH_POWER = 0.7;
+    final double LEFT_LAUNCH_POWER = 0.65;
     final double RIGHT_LAUNCH_POWER = 0.65;
     final double INTAKE_POWER = 1;
     final double STOP_POWER = 0;
@@ -23,7 +23,7 @@ public class DECODETeleop extends LinearOpMode {
     private Servo leftBringUp, rightBringUp;
 
     private ElapsedTime timer = new ElapsedTime();
-    private boolean shooting = false;
+    private boolean feeding = false;
 
     @Override
     public void runOpMode() {
@@ -67,37 +67,40 @@ public class DECODETeleop extends LinearOpMode {
             rightFrontDrive.setPower(rightFrontPower * DRIVETRAIN_SPEED);
             rightBackDrive.setPower(rightBackPower * DRIVETRAIN_SPEED);
 
-            if (gamepad1.x && !shooting) {
-                shooting = true;
+            if (gamepad1.x && !feeding) {
+                feeding = true;
                 timer.reset();
-                leftShooter.setPower(LEFT_LAUNCH_POWER);
-                rightShooter.setPower(RIGHT_LAUNCH_POWER);
+                leftBringUp.setPosition(LEFT_BRINGUP_POS);
+                rightBringUp.setPosition(RIGHT_BRINGUP_POS);
                 intake.setPower(STOP_POWER);
             }
 
-            if (shooting) {
+            if (feeding) {
+                
+                leftShooter.setPower(LEFT_LAUNCH_POWER);
+                rightShooter.setPower(RIGHT_LAUNCH_POWER);
                 
                 double t = timer.seconds();
-                if (t >= 3 && t < 4) {
+                if (t >= 1 && t < 1.2) {
                     leftBringUp.setPosition(LEFT_BRINGUP_POS);
                     rightBringUp.setPosition(RIGHT_BRINGUP_POS);
                 }
-                if (t >= 4) {
+                if (t >= 1.2 && t < 2.2) {
                     leftBringUp.setPosition(REST_POS);
                     rightBringUp.setPosition(REST_POS);
-                    shooting = false;
+                }
+                if (t >= 2.2) {
+                    feeding = false;
                 }
             }
-
-            if (gamepad1.b) {
+            
+            if (gamepad1.y) {
+                leftShooter.setPower(LEFT_LAUNCH_POWER);
+                rightShooter.setPower(RIGHT_LAUNCH_POWER);
+            } else if (gamepad1.b) {
                 leftShooter.setPower(STOP_POWER);
                 rightShooter.setPower(STOP_POWER);
-                leftBringUp.setPosition(REST_POS);
-                rightBringUp.setPosition(REST_POS);
-                shooting = false;
-            }
-
-            if (gamepad1.left_bumper && !shooting) {
+            } else if (gamepad1.left_bumper && !feeding) {
                 intake.setPower(INTAKE_POWER);
             } else if (gamepad1.right_bumper) {
                 intake.setPower(STOP_POWER);

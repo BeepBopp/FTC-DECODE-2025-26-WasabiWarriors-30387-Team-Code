@@ -15,7 +15,7 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.IMU;
 
 @TeleOp(name = "DECODE Teleop")
-public class DECODETeleopCarson extends LinearOpMode {
+public class DECODETeleop extends LinearOpMode {
 
     //
     // Constant parameters to change the robot functions
@@ -51,6 +51,8 @@ public class DECODETeleopCarson extends LinearOpMode {
     final double FULL_POWER = 1.0;  
     final double REST_POS = 0.5;    // Set both left and right feeder position (0.5 is the best)
     
+    final double SERVO_FIRE_DELAY = 500;  // Delay for color sensor sequence
+    
     //
     // Parameter for hardware state machine 
     //
@@ -80,6 +82,23 @@ public class DECODETeleopCarson extends LinearOpMode {
     private ElapsedTime pulsatileIntakeTimer = new ElapsedTime();
     private boolean pulsatileIntake = false;
     
+    // Color sensor and vision system
+    TestBenchHuskyLens vision = new TestBenchHuskyLens();
+    TestBenchColor bench = new TestBenchColor();
+    
+    // Color sensor sequence state
+    private ElapsedTime colorSensorTimer = new ElapsedTime();
+    private boolean colorSequenceRunning = false;
+    private int colorSequenceStep = 0;
+    private ColorSequenceType currentColorSequence;
+    
+    // Enum to define sequence types
+    private enum ColorSequenceType {
+        BOTH_TOGETHER,      // Fire left and right simultaneously
+        LEFT_THEN_RIGHT,    // Fire left, wait, then right
+        RIGHT_THEN_LEFT     // Fire right, wait, then left
+    }
+    
     // Boolean to detect buttons single press
     private boolean lastY = false;
     private boolean lastX = false;
@@ -106,6 +125,10 @@ public class DECODETeleopCarson extends LinearOpMode {
         intake = hardwareMap.get(DcMotor.class, "intake");
         leftBringUp = hardwareMap.get(Servo.class, "leftBringUp");
         rightBringUp = hardwareMap.get(Servo.class, "rightBringUp");
+        
+        // Initialize color sensor and vision
+        bench.init(hardwareMap);
+        vision.init(hardwareMap, "huskylens");
         
         IMU imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.UP;
@@ -138,6 +161,9 @@ public class DECODETeleopCarson extends LinearOpMode {
         // Teleops loop starts
         //
         while (opModeIsActive()) {
+            
+            // Update vision system
+            vision.updateMotif();
             
             //
             // Diver gamepad joystick controls 
@@ -193,8 +219,22 @@ public class DECODETeleopCarson extends LinearOpMode {
             //
             ///////////////////////////////////
 
-            // Feeding - Left
-            if (gamepad1.x && !lastX) {
+            // COLOR SENSOR SEQUENCE - A button triggers color-based feeding
+            if (gamepad1.a && !lastA && !colorSequenceRunning) {
+                // Get current colors and motif
+                TestBenchColor.DualColorResult colors = bench.getDetectedColors(null);
+                int motif = vision.getMotif();
+                boolean motifSet = vision.isMotifSet();
+                
+                // Always run sequence, even if no motif detected (will default to both together)
+                determineAndStartColorSequence(motif, colors.left, colors.right);
+            }
+            
+            // Execute color sensor sequence if running
+            executeColorSequence();
+
+            // Feeding - Left (X button - now only for manual control)
+            if (gamepad1.x && !lastX && !colorSequenceRunning) {
                 // Press X to raise left feeder
                 feedingLeft = true;
                 leftFeederTimer.reset();
@@ -208,8 +248,8 @@ public class DECODETeleopCarson extends LinearOpMode {
                 }
             }
 
-            // Feeding - Right
-            if (gamepad1.b && !lastB) {
+            // Feeding - Right (B button - now only for manual control)
+            if (gamepad1.b && !lastB && !colorSequenceRunning) {
                 // Press B to raise right feeder
                 feedingRight = true;
                 rightFeederTimer.reset();
@@ -222,24 +262,6 @@ public class DECODETeleopCarson extends LinearOpMode {
                     feedingStartSecond = rightFeederTimer.seconds();
                 }
             }
-            
-            // Feeding - Left and Right
-            if (gamepad1.a && !lastA) { // Turn on shooter and wait if not on
-                // Press A to raise both left and right feeders
-                feedingLeft = true;
-                feedingRight = true;
-                leftFeederTimer.reset();
-                rightFeederTimer.reset();
-                
-                if(!shootingMotorIsOn) {
-                    turnShooterOn();
-                    feedingStartSecond = leftFeederTimer.seconds() + SHOOTER_SPOOLUP_TIME;
-                }
-                else {
-                    feedingStartSecond = leftFeederTimer.seconds();
-                    feedingStartSecond = rightFeederTimer.seconds();
-                }
-            }            
             
             // Catch button hold and release
             lastX = gamepad1.x;
@@ -300,12 +322,6 @@ public class DECODETeleopCarson extends LinearOpMode {
                     // Hold bumper to turn on intake
                     turnIntakeToScoop();
                 }
-                /*
-                else if( y > 0.0 && y < AUTO_SCOPE_STOP_SPEED && AUTO_SCOOP_FWD) {
-                    // Auto scooping enabled when moving forward
-                    turnIntakeToScoop();
-                }
-                */
                 else if (gamepad1.right_bumper) {
                     // Hold trigger to spit
                     turnIntakeToSpit();
@@ -315,28 +331,6 @@ public class DECODETeleopCarson extends LinearOpMode {
                     intake.setPower(STOP_POWER);
                 }
             }
-            /*
-            else
-            {
-                if (gamepad1.right_bumper && !lastRightBumper) {
-                // Right bumper press: Toggle scoop
-                intakeScoopActive = !intakeScoopActive;
-                }
-                if (gamepad1.left_bumper && !lastLeftBumper) {
-                    // Left bumper press: Force off
-                    intakeScoopActive = false;
-                }
-            }
-            // Apply current state
-            if (intakeScoopActive) {
-                turnIntakeToScoop();
-            } else if (gamepad1.right_bumper) {
-                turnIntakeToSpit();
-            } else {
-                intake.setPower(STOP_POWER);
-            }
-            */
-            
             
             if (gamepad1.right_trigger > 0.1) {
                 bringThirdBall = true;
@@ -364,7 +358,7 @@ public class DECODETeleopCarson extends LinearOpMode {
             // Stop shooting motor if it ran too long
             if (shootingMotorIsOn) {
                 if (shootingTimer.seconds() > LONGEST_SHOOTING_MOTOR_DURATION) {
-                    if(!feedingLeft && !feedingRight) {
+                    if(!feedingLeft && !feedingRight && !colorSequenceRunning) {
                         turnShooterOff(); // stop motors if running more than 10 seconds
                     }
                     else {
@@ -373,12 +367,188 @@ public class DECODETeleopCarson extends LinearOpMode {
                 }
             }
 
+            // Add color sensor telemetry
+            TestBenchColor.DualColorResult currentColors = bench.getDetectedColors(telemetry);
+            telemetry.addData("Color Sequence Running", colorSequenceRunning);
+            if (colorSequenceRunning) {
+                telemetry.addData("Current Sequence", currentColorSequence);
+                telemetry.addData("Sequence Step", colorSequenceStep);
+            }
+            int motif = vision.getMotif();
+            if (motif == 0) {
+                telemetry.addData("Motif", "0: Green Purple Purple");
+            } else if (motif == 1) {
+                telemetry.addData("Motif", "1: Purple Green Purple");
+            } else if (motif == 2) {
+                telemetry.addData("Motif", "2: Purple Purple Green");
+            } else {
+                telemetry.addData("Motif", "No Motif Detected");
+            }
+            
             telemetry.update();
         }
     } 
     
 ////////////////////// Teleops Loop Ends //////////////////////////////
 
+    /////////////////////////////////////////
+    // COLOR SENSOR SEQUENCE METHODS
+    /////////////////////////////////////////
+    
+    // Determine which sequence to run based on motif and colors
+    private void determineAndStartColorSequence(int motif, TestBenchColor.DetectedColor leftColor,
+                                               TestBenchColor.DetectedColor rightColor) {
+        // Turn on shooter if not already on
+        if (!shootingMotorIsOn) {
+            turnShooterOn();
+            // Start at -1 to wait for spool up
+            colorSequenceStep = -1;
+        } else {
+            // Shooter already on, skip wait phase
+            colorSequenceStep = 0;
+        }
+        
+        // Motif 0: Green Purple Purple - Fire based on which side has green
+        if (motif == 0 && leftColor != TestBenchColor.DetectedColor.UNKNOWN &&
+                rightColor != TestBenchColor.DetectedColor.UNKNOWN) {
+            if (leftColor == TestBenchColor.DetectedColor.GREEN) {
+                currentColorSequence = ColorSequenceType.LEFT_THEN_RIGHT;
+            } else {
+                currentColorSequence = ColorSequenceType.RIGHT_THEN_LEFT;
+            }
+            colorSequenceRunning = true;
+            colorSensorTimer.reset();
+        }
+
+        // Motif 1: Purple Green Purple - Fire based on which side has purple
+        else if (motif == 1 && leftColor != TestBenchColor.DetectedColor.UNKNOWN &&
+                rightColor != TestBenchColor.DetectedColor.UNKNOWN) {
+            if (leftColor == TestBenchColor.DetectedColor.PURPLE) {
+                currentColorSequence = ColorSequenceType.LEFT_THEN_RIGHT;
+            } else {
+                currentColorSequence = ColorSequenceType.RIGHT_THEN_LEFT;
+            }
+            colorSequenceRunning = true;
+            colorSensorTimer.reset();
+        }
+
+        // Motif 2, no motif detected, unknown colors, or same colors - Fire both together
+        else {
+            currentColorSequence = ColorSequenceType.BOTH_TOGETHER;
+            colorSequenceRunning = true;
+            colorSensorTimer.reset();
+        }
+    }
+    
+    // Execute the current color sensor sequence
+    private void executeColorSequence() {
+        if (!colorSequenceRunning) return;
+
+        switch (currentColorSequence) {
+            case BOTH_TOGETHER:
+                executeColorBothTogether();
+                break;
+
+            case LEFT_THEN_RIGHT:
+                executeColorLeftThenRight();
+                break;
+
+            case RIGHT_THEN_LEFT:
+                executeColorRightThenLeft();
+                break;
+        }
+    }
+    
+    // Fire both servos simultaneously
+    private void executeColorBothTogether() {
+        // Step -1: Wait for shooter to spool up
+        if (colorSequenceStep == -1) {
+            if (colorSensorTimer.seconds() >= SHOOTER_SPOOLUP_TIME) {
+                colorSequenceStep = 0;
+                colorSensorTimer.reset();
+            }
+        }
+        // Step 0: Fire both feeders
+        else if (colorSequenceStep == 0) {
+            leftBringUp.setPosition(LEFT_BRINGUP_POS);
+            rightBringUp.setPosition(RIGHT_BRINGUP_POS);
+            colorSequenceStep = 1;
+            colorSensorTimer.reset();
+        } 
+        // Step 1: Wait, then lower feeders and start third ball
+        else if (colorSequenceStep == 1 && colorSensorTimer.milliseconds() >= SERVO_FIRE_DELAY) {
+            leftBringUp.setPosition(REST_POS);
+            rightBringUp.setPosition(REST_POS);
+            bringThirdBall = true;
+            thirdBallTimer.reset();
+            colorSequenceRunning = false;
+            colorSequenceStep = 0;
+        }
+    }
+    
+    // Fire left first, then right (sequential)
+    private void executeColorLeftThenRight() {
+        // Step -1: Wait for shooter to spool up
+        if (colorSequenceStep == -1) {
+            if (colorSensorTimer.seconds() >= SHOOTER_SPOOLUP_TIME) {
+                colorSequenceStep = 0;
+                colorSensorTimer.reset();
+            }
+        }
+        // Step 0: Fire left feeder
+        else if (colorSequenceStep == 0) {
+            leftBringUp.setPosition(LEFT_BRINGUP_POS);
+            colorSequenceStep = 1;
+            colorSensorTimer.reset();
+        } 
+        // Step 1: Wait, then lower left and fire right
+        else if (colorSequenceStep == 1 && colorSensorTimer.milliseconds() >= SERVO_FIRE_DELAY) {
+            leftBringUp.setPosition(REST_POS);
+            rightBringUp.setPosition(RIGHT_BRINGUP_POS);
+            colorSequenceStep = 2;
+            colorSensorTimer.reset();
+        } 
+        // Step 2: Wait, then lower right and start third ball
+        else if (colorSequenceStep == 2 && colorSensorTimer.milliseconds() >= SERVO_FIRE_DELAY) {
+            rightBringUp.setPosition(REST_POS);
+            bringThirdBall = true;
+            thirdBallTimer.reset();
+            colorSequenceRunning = false;
+            colorSequenceStep = 0;
+        }
+    }
+    
+    // Fire right first, then left (sequential)
+    private void executeColorRightThenLeft() {
+        // Step -1: Wait for shooter to spool up
+        if (colorSequenceStep == -1) {
+            if (colorSensorTimer.seconds() >= SHOOTER_SPOOLUP_TIME) {
+                colorSequenceStep = 0;
+                colorSensorTimer.reset();
+            }
+        }
+        // Step 0: Fire right feeder
+        else if (colorSequenceStep == 0) {
+            rightBringUp.setPosition(RIGHT_BRINGUP_POS);
+            colorSequenceStep = 1;
+            colorSensorTimer.reset();
+        } 
+        // Step 1: Wait, then lower right and fire left
+        else if (colorSequenceStep == 1 && colorSensorTimer.milliseconds() >= SERVO_FIRE_DELAY) {
+            rightBringUp.setPosition(REST_POS);
+            leftBringUp.setPosition(LEFT_BRINGUP_POS);
+            colorSequenceStep = 2;
+            colorSensorTimer.reset();
+        } 
+        // Step 2: Wait, then lower left and start third ball
+        else if (colorSequenceStep == 2 && colorSensorTimer.milliseconds() >= SERVO_FIRE_DELAY) {
+            leftBringUp.setPosition(REST_POS);
+            bringThirdBall = true;
+            thirdBallTimer.reset();
+            colorSequenceRunning = false;
+            colorSequenceStep = 0;
+        }
+    }
 
     ////////////////////////////////////////////
     // Tank turn left method
@@ -410,7 +580,7 @@ public class DECODETeleopCarson extends LinearOpMode {
     }
 
     ////////////////////////////////////////////
-    // Tank turn left method
+    // Tank turn right method
     //////////////////////////////////////////
     private void updateTankTurnRight() {
         if (!turningRight) return;
@@ -443,7 +613,7 @@ public class DECODETeleopCarson extends LinearOpMode {
     /////////////////////////////
     private void turnIntakeToScoop() {
         
-        if(feedingLeft || feedingRight) // Do not turn on intake while feeding
+        if(feedingLeft || feedingRight || colorSequenceRunning) // Do not turn on intake while feeding
             return;
         
         // Turn on intake motor to in direction
@@ -484,7 +654,7 @@ public class DECODETeleopCarson extends LinearOpMode {
     // Method to move left feeder up
     //////////////////////////////
     private void updateFeedLeft() {
-        if (!feedingLeft) return;
+        if (!feedingLeft || colorSequenceRunning) return;
 
         double t = leftFeederTimer.seconds();
 
@@ -493,7 +663,7 @@ public class DECODETeleopCarson extends LinearOpMode {
             leftBringUp.setPosition(LEFT_BRINGUP_POS);
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { // lower the arms
             leftBringUp.setPosition(REST_POS);
-        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond) /*&& !feedingRight*/) { // extra scope after arm is down
+        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond)) { // extra scope after arm is down
             intake.setDirection(DcMotor.Direction.REVERSE);
             intake.setPower(FULL_POWER/2);
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DURATION + 0.5 + feedingStartSecond) && !feedingRight) { // extra scope after arm is down
@@ -510,7 +680,7 @@ public class DECODETeleopCarson extends LinearOpMode {
     // Method to move right feeder up
     //////////////////////////////
     private void updateFeedRight() {
-        if (!feedingRight) return;
+        if (!feedingRight || colorSequenceRunning) return;
 
         double t = rightFeederTimer.seconds();
         
@@ -519,7 +689,7 @@ public class DECODETeleopCarson extends LinearOpMode {
             rightBringUp.setPosition(RIGHT_BRINGUP_POS);
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { // lower the arms
             rightBringUp.setPosition(REST_POS);
-        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond) /*&& !feedingLeft*/) { // extra scope after feeder down
+        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond)) { // extra scope after feeder down
             intake.setDirection(DcMotor.Direction.REVERSE);
             intake.setPower(FULL_POWER / 2); 
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DURATION + 0.5 + feedingStartSecond) && !feedingLeft) { // extra scope after feeder down
@@ -539,14 +709,15 @@ public class DECODETeleopCarson extends LinearOpMode {
         
         if (t > 0 && t < 0.2) {
             intake.setPower(STOP_POWER);
-        } else if (t > 0.2 && t < 0.7) {
+        } else if (t > 0.2 && t < 0.5) {
             intake.setDirection(DcMotor.Direction.REVERSE);
             intake.setPower(FULL_POWER/2);
-        } else if (t > 0.7 && t < 1.2) {
+        } else if (t > 0.5 && t < 1) {
             intake.setDirection(DcMotor.Direction.FORWARD);
-            intake.setPower(FULL_POWER);
-        } else if (t > 1.2) {
+            intake.setPower(0.9);
+        } else if (t > 1) {
             intake.setPower(STOP_POWER);
+            bringThirdBall = false;
         }
     }
     

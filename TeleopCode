@@ -347,13 +347,11 @@ public class DECODETeleopCarson extends LinearOpMode {
             
             if (gamepad1.left_bumper) {
                 if (!pulsatileIntake) {
-                    // Just started holding - reset timer
                     pulsatileIntake = true;
                     pulsatileIntakeTimer.reset();
                 }
-                // Continue running while held
+                pulsatileIntake();  
             } else {
-                // Released - stop immediately
                 if (pulsatileIntake) {
                     pulsatileIntake = false;
                     intake.setPower(STOP_POWER);

@@ -1,0 +1,598 @@
+package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+
+@TeleOp(name = "DECODE Teleop - Field Centric")
+public class DECODEFieldCentric extends LinearOpMode {
+
+    // ================= CONSTANTS =================
+
+    final double DRIVETRAIN_SPEED = 1;
+
+    final double LEFT_SHOOTER_VELOCITY = 1650;
+    final double RIGHT_SHOOTER_VELOCITY = 1675;
+    final double LEFT_SHOOTER_VELOCITY_HIGH = 2150;
+    final double RIGHT_SHOOTER_VELOCITY_HIGH = 2250;
+
+    final double FEEDER_UP_TIME = 0.6;
+    final double FEEDER_FOLLOWUP_DURATION = 2.0;
+    final double FEEDER_FOLLOWUP_DELAY = 0.2;
+
+    final double TANK_TURN_DURATION = 0.9;
+    final double SPIT_POWER_MULTIPLIER = 0.85;
+
+    final boolean HOLD_TO_RUN_INTAKE = true;
+    final boolean AUTO_SCOOP_FWD = true;
+    final double AUTO_SCOPE_STOP_SPEED = 0.8;
+    final double LONGEST_SHOOTING_MOTOR_DURATION = 2.0;
+    final double SHOOTER_SPOOLUP_TIME = 1.0;
+
+    final double STOP_POWER = 0.0;
+    final double LEFT_BRINGUP_POS = 0.95;
+    final double RIGHT_BRINGUP_POS = 0.04;
+    final double FULL_POWER = 1.0;
+    final double REST_POS = 0.5;
+
+    // ================= HARDWARE =================
+
+    private DcMotor leftFrontDrive, rightFrontDrive, leftBackDrive, rightBackDrive, intake;
+    private DcMotorEx leftShooter, rightShooter;
+    private Servo leftBringUp, rightBringUp;
+
+    private IMU imu;
+
+    // ================= STATE =================
+
+    private boolean fieldCentric = true;
+    private boolean lastShare = false;
+    private boolean lastOptions = false;
+
+    private boolean turningLeft = false;
+    private boolean turningRight = false;
+
+    private boolean feedingLeft = false;
+    private boolean feedingRight = false;
+    private boolean shootingMotorIsOn = false;
+    private boolean feederUp = false;
+    private boolean bringThirdBall = false;
+    private boolean pulsatileIntake = false;
+
+    private double feedingStartSecond = 0.0;
+
+    // ================= TIMERS =================
+
+    private ElapsedTime timerTankTurn = new ElapsedTime();
+    private ElapsedTime leftFeederTimer = new ElapsedTime();
+    private ElapsedTime rightFeederTimer = new ElapsedTime();
+    private ElapsedTime shootingTimer = new ElapsedTime();
+    private ElapsedTime thirdBallTimer = new ElapsedTime();
+    private ElapsedTime pulsatileIntakeTimer = new ElapsedTime();
+
+    // ================= BUTTON LATCH =================
+
+    private boolean lastY = false, lastX = false, lastA = false, lastB = false;
+    private boolean lastDTurn = false, lastDDown = false;
+    private boolean lastRightBumper = false, lastLeftBumper = false;
+
+    // ================= OPMODE =================
+
+    @Override
+    public void runOpMode() {
+        leftFrontDrive = hardwareMap.get(DcMotor.class, "leftFront");
+        rightFrontDrive = hardwareMap.get(DcMotor.class, "rightFront");
+        leftBackDrive = hardwareMap.get(DcMotor.class, "leftBack");
+        rightBackDrive = hardwareMap.get(DcMotor.class, "rightBack");
+
+        intake = hardwareMap.get(DcMotor.class, "intake");
+        leftShooter = hardwareMap.get(DcMotorEx.class, "leftShooter");
+        rightShooter = hardwareMap.get(DcMotorEx.class, "rightShooter");
+
+        leftBringUp = hardwareMap.get(Servo.class, "leftBringUp");
+        rightBringUp = hardwareMap.get(Servo.class, "rightBringUp");
+
+        // Initialize IMU
+        imu = hardwareMap.get(IMU.class, "imu");
+        IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
+                RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                RevHubOrientationOnRobot.UsbFacingDirection.LEFT));
+        imu.initialize(parameters);
+        leftBackDrive.setDirection(DcMotor.Direction.REVERSE);
+        leftFrontDrive.setDirection(DcMotor.Direction.REVERSE);
+        rightFrontDrive.setDirection(DcMotor.Direction.FORWARD);
+        rightBackDrive.setDirection(DcMotor.Direction.FORWARD);
+
+        intake.setDirection(DcMotor.Direction.FORWARD);
+        leftShooter.setDirection(DcMotor.Direction.REVERSE);
+
+        leftShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        leftShooter.setPIDFCoefficients(
+                DcMotor.RunMode.RUN_USING_ENCODER,
+                new PIDFCoefficients(300, 0, 0, 10)
+        );
+        rightShooter.setPIDFCoefficients(
+                DcMotor.RunMode.RUN_USING_ENCODER,
+                new PIDFCoefficients(300, 0, 0, 10)
+        );
+
+        setBrakeOn();
+
+        // Reset IMU yaw
+        imu.resetYaw();
+
+        waitForStart();
+
+        // ================= MAIN LOOP =================
+
+        while (opModeIsActive()) {
+
+            // -------- Mode Toggles --------
+
+            if (gamepad2.share && !lastShare) {
+                fieldCentric = !fieldCentric;
+            }
+            lastShare = gamepad2.share;
+
+            if (gamepad2.options && !lastOptions) {
+                imu.resetYaw();
+            }
+            lastOptions = gamepad2.options;
+
+            // -------- Drive Input --------
+
+            double y = -gamepad2.left_stick_y;
+            double x = gamepad2.left_stick_x;
+            double rxRaw = gamepad2.right_stick_x;
+
+            if (fieldCentric) {
+                double heading = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
+                
+                double cos = Math.cos(-heading);
+                double sin = Math.sin(-heading);
+                double rotX = x * cos - y * sin;
+                double rotY = x * sin + y * cos;
+                x = rotX;
+                y = rotY;
+            }
+
+            // Reduce turn power when driving forward/strafing to maintain speed
+            double driveMag = Math.min(1.0, Math.hypot(x, y));
+            double turnScale = 1.0 - 0.3 * driveMag;  // Tune 0.3 lower for less slowdown, higher for more
+            double rx = rxRaw * turnScale;
+
+            double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1.0);
+            double leftFrontPower  = (y + x + rx) / denominator;
+            double leftBackPower   = (y - x + rx) / denominator;
+            double rightFrontPower = (y - x - rx) / denominator;
+            double rightBackPower  = (y + x - rx) / denominator;
+
+            leftFrontDrive.setPower(leftFrontPower * DRIVETRAIN_SPEED);
+            leftBackDrive.setPower(leftBackPower * DRIVETRAIN_SPEED);
+            rightFrontDrive.setPower(rightFrontPower * DRIVETRAIN_SPEED);
+            rightBackDrive.setPower(rightBackPower * DRIVETRAIN_SPEED);
+
+            // -------- Tank Turns --------
+
+            if (gamepad2.x && !lastDTurn) {
+                turningLeft = true;
+                timerTankTurn.reset();
+            } else if (gamepad2.b && !lastDTurn) {
+                turningRight = true;
+                timerTankTurn.reset();
+            }
+
+            updateTankTurnLeft();
+            updateTankTurnRight();
+            lastDTurn = gamepad2.x || gamepad2.b;
+
+
+            //////////////////////////////////
+            //
+            // Shooter buttons binding
+            //
+            ///////////////////////////////////
+
+            // Feeding - Left
+            if (gamepad1.x && !lastX) {
+                // Press X to raise left feeder
+                feedingLeft = true;
+                leftFeederTimer.reset();
+                
+                if(!shootingMotorIsOn) { // Turn on shooter and wait if not on
+                    turnShooterOn();
+                    feedingStartSecond = leftFeederTimer.seconds() + SHOOTER_SPOOLUP_TIME;
+                }
+                else {
+                    feedingStartSecond = leftFeederTimer.seconds();
+                }
+            }
+
+            // Feeding - Right
+            if (gamepad1.b && !lastB) {
+                // Press B to raise right feeder
+                feedingRight = true;
+                rightFeederTimer.reset();
+                
+                if(!shootingMotorIsOn) { // Turn on shooter and wait if not on
+                    turnShooterOn();
+                    feedingStartSecond = rightFeederTimer.seconds() + SHOOTER_SPOOLUP_TIME;
+                }
+                else {
+                    feedingStartSecond = rightFeederTimer.seconds();
+                }
+            }
+            
+            // Feeding - Left and Right
+            if (gamepad1.a && !lastA) { // Turn on shooter and wait if not on
+                // Press A to raise both left and right feeders
+                feedingLeft = true;
+                feedingRight = true;
+                leftFeederTimer.reset();
+                rightFeederTimer.reset();
+                
+                if(!shootingMotorIsOn) {
+                    turnShooterOn();
+                    feedingStartSecond = leftFeederTimer.seconds() + SHOOTER_SPOOLUP_TIME;
+                }
+                else {
+                    feedingStartSecond = leftFeederTimer.seconds();
+                    feedingStartSecond = rightFeederTimer.seconds();
+                }
+            }            
+            
+            // Catch button hold and release
+            lastX = gamepad1.x;
+            lastB = gamepad1.b;
+            lastA = gamepad1.a;
+            
+            updateFeedLeft();
+            updateFeedRight();
+
+            // Shooting motor controls
+            if (gamepad1.y && !lastY) {
+                // Press Y to cycle shooting motor On and Off
+                if (!shootingMotorIsOn) {
+                    turnShooterOn();
+                } else {
+                    turnShooterOff();
+                }
+            }
+            lastY = gamepad1.y; // Catch button hold and release
+
+            // Holding dpad UP to increase shooting power
+            if (gamepad1.dpad_up && shootingMotorIsOn) {
+                // Set shooting motor power to high
+                leftShooter.setVelocity(LEFT_SHOOTER_VELOCITY_HIGH);
+                rightShooter.setVelocity(RIGHT_SHOOTER_VELOCITY_HIGH);
+            }
+            else if (!gamepad1.dpad_up && shootingMotorIsOn) {
+                // Set shooting motor power to normal
+                leftShooter.setVelocity(LEFT_SHOOTER_VELOCITY);
+                rightShooter.setVelocity(RIGHT_SHOOTER_VELOCITY);
+            }
+
+            //
+            // Raise feeer to unstuck the balls
+            // 
+            if (gamepad1.dpad_down && !lastDDown) {
+                feederUp = !feederUp;  // cycle feedup Up and Down states
+
+                if (feederUp) {
+                    rightBringUp.setPosition(RIGHT_BRINGUP_POS);
+                    leftBringUp.setPosition(LEFT_BRINGUP_POS);
+                } else {
+                    rightBringUp.setPosition(REST_POS);
+                    leftBringUp.setPosition(REST_POS);
+                }
+            }
+            
+            lastDDown = gamepad1.dpad_down;
+
+            //////////////////////////////
+            //
+            // Button press to enable Intake Functions
+            //
+            /////////////////////////////
+            if(HOLD_TO_RUN_INTAKE) // Selecting mode to enable Intake 
+            {
+                if (gamepad1.left_trigger > 0.1) {
+                    // Hold bumper to turn on intake
+                    turnIntakeToScoop();
+                }
+                /*
+                else if( y > 0.0 && y < AUTO_SCOPE_STOP_SPEED && AUTO_SCOOP_FWD) {
+                    // Auto scooping enabled when moving forward
+                    turnIntakeToScoop();
+                }
+                */
+                else if (gamepad1.right_bumper) {
+                    // Hold trigger to spit
+                    turnIntakeToSpit();
+                }
+                else {
+                    // Intake off
+                    intake.setPower(STOP_POWER);
+                }
+            }
+            /*
+            else
+            {
+                if (gamepad1.right_bumper && !lastRightBumper) {
+                // Right bumper press: Toggle scoop
+                intakeScoopActive = !intakeScoopActive;
+                }
+                if (gamepad1.left_bumper && !lastLeftBumper) {
+                    // Left bumper press: Force off
+                    intakeScoopActive = false;
+                }
+            }
+            // Apply current state
+            if (intakeScoopActive) {
+                turnIntakeToScoop();
+            } else if (gamepad1.right_bumper) {
+                turnIntakeToSpit();
+            } else {
+                intake.setPower(STOP_POWER);
+            }
+            */
+            
+            
+            if (gamepad1.right_trigger > 0.1) {
+                bringThirdBall = true;
+                thirdBallTimer.reset();
+            }
+            
+            bringThirdBall();
+            
+            if (gamepad1.left_bumper) {
+                if (!pulsatileIntake) {
+                    pulsatileIntake = true;
+                    pulsatileIntakeTimer.reset();
+                }
+                pulsatileIntake();  
+            } else {
+                if (pulsatileIntake) {
+                    pulsatileIntake = false;
+                    intake.setPower(STOP_POWER);
+                }
+            }
+            
+            lastRightBumper = gamepad1.right_bumper;
+            lastLeftBumper = gamepad1.left_bumper;
+            
+            // Stop shooting motor if it ran too long
+            if (shootingMotorIsOn) {
+                if (shootingTimer.seconds() > LONGEST_SHOOTING_MOTOR_DURATION) {
+                    if(!feedingLeft && !feedingRight) {
+                        turnShooterOff(); // stop motors if running more than 10 seconds
+                    }
+                    else {
+                        shootingTimer.reset();
+                    }
+                }
+            }
+
+            telemetry.addData("Drive Mode", fieldCentric ? "Field Centric" : "Robot Centric");
+            telemetry.addData("Robot Heading (Deg)", imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES));
+            telemetry.update();
+        }
+    }    
+    
+////////////////////// Teleops Loop Ends //////////////////////////////
+
+
+    ////////////////////////////////////////////
+    // Tank turn left method
+    //////////////////////////////////////////
+    private void updateTankTurnLeft() {
+        if (!turningLeft) return;
+        
+        double t = timerTankTurn.seconds();
+        
+         if (t < TANK_TURN_DURATION) {
+             setBrakeOff();
+             
+             // Turn drivetrain motors for the set duration
+             leftFrontDrive.setPower(-FULL_POWER);
+             leftBackDrive.setPower(-FULL_POWER);
+             rightFrontDrive.setPower(FULL_POWER);
+             rightBackDrive.setPower(FULL_POWER);
+         } else {
+             // Stop motor after duration ended
+             leftFrontDrive.setPower(STOP_POWER);
+             leftBackDrive.setPower(STOP_POWER);
+             rightFrontDrive.setPower(STOP_POWER);
+             rightBackDrive.setPower(STOP_POWER);
+             
+             setBrakeOn();
+        
+             turningLeft = false;
+           }
+    }
+
+    ////////////////////////////////////////////
+    // Tank turn right method
+    //////////////////////////////////////////
+    private void updateTankTurnRight() {
+        if (!turningRight) return;
+        
+        double t = timerTankTurn.seconds();
+        
+         if (t < TANK_TURN_DURATION) {
+             setBrakeOff();
+             
+             // Turn drivetrain motors for the set duration
+             leftFrontDrive.setPower(FULL_POWER);
+             leftBackDrive.setPower(FULL_POWER);
+             rightFrontDrive.setPower(-FULL_POWER);
+             rightBackDrive.setPower(-FULL_POWER);
+           }
+           else {
+             setBrakeOn();
+             
+             // Stop motor after duration ended
+             leftFrontDrive.setPower(STOP_POWER);
+             leftBackDrive.setPower(STOP_POWER);
+             rightFrontDrive.setPower(STOP_POWER);
+             rightBackDrive.setPower(STOP_POWER);
+             turningRight = false;
+           }
+    }
+
+    /////////////////////////
+    // Scooping in balls method
+    ///////////////////////////
+    private void turnIntakeToScoop() {
+        
+        if(feedingLeft || feedingRight) // Do not turn on intake while feeding
+            return;
+        
+        // Turn on intake motor to in direction
+        intake.setDirection(DcMotor.Direction.REVERSE);
+        intake.setPower(FULL_POWER);
+    }
+
+    //////////////////////////
+    // Spitting out balls method
+    ///////////////////////////
+    private void turnIntakeToSpit() {
+        // Turn on intake motor to out direction
+        intake.setDirection(DcMotor.Direction.FORWARD);
+        intake.setPower(FULL_POWER * SPIT_POWER_MULTIPLIER);
+    }
+
+    ///////////////////////////////////
+    // Turn on shooting motor
+    ///////////////////////////////////
+    private void turnShooterOn() {
+        leftShooter.setVelocity(LEFT_SHOOTER_VELOCITY);
+        rightShooter.setVelocity(RIGHT_SHOOTER_VELOCITY);
+        shootingMotorIsOn = true;
+        shootingTimer.reset(); // start timing when shooter turns on
+    }
+
+    ////////////////////////////////
+    // Turn off shooting motor
+    ////////////////////////////////
+    private void turnShooterOff() {
+        leftShooter.setVelocity(STOP_POWER);
+        rightShooter.setVelocity(STOP_POWER);
+        shootingMotorIsOn = false;
+        shootingTimer.reset(); // reset timer when shooter turns off
+    }
+
+    ///////////////////////////////
+    // Method to move left feeder up
+    //////////////////////////////
+    private void updateFeedLeft() {
+        if (!feedingLeft) return;
+
+        double t = leftFeederTimer.seconds();
+
+        if (t > feedingStartSecond && t < (FEEDER_UP_TIME + feedingStartSecond)) {  // Feeding ball
+            intake.setPower(STOP_POWER);
+            leftBringUp.setPosition(LEFT_BRINGUP_POS);
+        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { // lower the arms
+            leftBringUp.setPosition(REST_POS);
+        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond) /*&& !feedingRight*/) { // extra scope after arm is down
+            intake.setDirection(DcMotor.Direction.FORWARD);
+            intake.setPower(FULL_POWER/2);
+        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DURATION + 0.5 + feedingStartSecond) && !feedingRight) { // extra scope after arm is down
+            intake.setDirection(DcMotor.Direction.REVERSE);
+            intake.setPower(FULL_POWER);
+        } else if (t > feedingStartSecond) { // Feeding completed
+            intake.setPower(STOP_POWER);
+            feedingLeft = false;
+            feedingStartSecond = 0.0;
+        }
+    }
+
+    ///////////////////////////////
+    // Method to move right feeder up
+    //////////////////////////////
+    private void updateFeedRight() {
+        if (!feedingRight) return;
+
+        double t = rightFeederTimer.seconds();
+        
+        if (t > feedingStartSecond && t < (FEEDER_UP_TIME + feedingStartSecond)) { // Feeding ball
+            intake.setPower(STOP_POWER);
+            rightBringUp.setPosition(RIGHT_BRINGUP_POS);
+        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { // lower the arms
+            rightBringUp.setPosition(REST_POS);
+        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond) /*&& !feedingLeft*/) { // extra scope after feeder down
+            intake.setDirection(DcMotor.Direction.FORWARD);
+            intake.setPower(FULL_POWER / 2);  
+        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DURATION + 0.5 + feedingStartSecond) && !feedingLeft) { // extra scope after feeder down
+            intake.setDirection(DcMotor.Direction.REVERSE);
+            intake.setPower(FULL_POWER);
+        } else if (t > feedingStartSecond) { // Feeding completed
+            intake.setPower(STOP_POWER);
+            feedingRight = false;
+            feedingStartSecond = 0.0;
+        }
+    }
+
+    private void bringThirdBall() {
+        if (!bringThirdBall) return;
+        
+        double t = thirdBallTimer.seconds();
+        
+        if (t > 0 && t < 0.2) {
+            intake.setPower(STOP_POWER);
+        } else if (t > 0.2 && t < 0.7) {
+            intake.setDirection(DcMotor.Direction.FORWARD);
+            intake.setPower(FULL_POWER/2);
+        } else if (t > 0.7 && t < 1.4) {
+            intake.setDirection(DcMotor.Direction.REVERSE);
+            intake.setPower(FULL_POWER);
+        } else if (t > 1.4) {
+            intake.setPower(STOP_POWER);
+            bringThirdBall = false;
+        }
+    }
+    
+    private void pulsatileIntake() {
+        if (!pulsatileIntake) return;
+        
+        double t = pulsatileIntakeTimer.seconds();
+        
+        // Cycle: 0.5s ON, 1.0s OFF, repeat
+        double cycleTime = t % 1.5;  // Total cycle is 1.5 seconds
+        
+        if (cycleTime < 0.5) {
+            // First 0.5 seconds: intake ON
+            intake.setDirection(DcMotor.Direction.FORWARD);
+            intake.setPower(FULL_POWER);
+        } else {
+            // Next 1.0 seconds: intake OFF (pause)
+            intake.setPower(STOP_POWER);
+        }
+    }
+    
+    private void setBrakeOn() {
+        // Set BRAKE for precise stopping
+        leftFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+    }
+    
+    private void setBrakeOff() {
+        // Set FLOAT for smooth turns
+        leftFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        leftBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        rightFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        rightBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+    }
+}

@@ -479,13 +479,18 @@ public class DECODETeleop extends LinearOpMode {
             leftBringUp.setPosition(LEFT_BRINGUP_POS);
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { // lower the arms
             leftBringUp.setPosition(REST_POS);
-        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond)) { // extra scope after arm is down
-            intake.setDirection(DcMotor.Direction.FORWARD);
-            intake.setPower(FULL_POWER/2);
-        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DURATION + 0.5 + feedingStartSecond) && !feedingRight) { // extra scope after arm is down
-            intake.setDirection(DcMotor.Direction.REVERSE);
-            intake.setPower(FULL_POWER);
-        } else if (t > feedingStartSecond) { // Feeding completed
+        } else if (t > (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond) && !feedingRight) { 
+            // Start third ball sequence after feeder is down
+            if (!bringThirdBall) {
+                bringThirdBall = true;
+                thirdBallTimer.reset();
+            }
+            // Complete feeding - third ball will take over
+            intake.setPower(STOP_POWER);
+            feedingLeft = false;
+            feedingStartSecond = 0.0;
+        } else if (t > (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { 
+            // If other feeder is active, just complete without third ball
             intake.setPower(STOP_POWER);
             feedingLeft = false;
             feedingStartSecond = 0.0;
@@ -505,13 +510,18 @@ public class DECODETeleop extends LinearOpMode {
             rightBringUp.setPosition(RIGHT_BRINGUP_POS);
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { // lower the arms
             rightBringUp.setPosition(REST_POS);
-        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond)) { // extra scope after feeder down
-            intake.setDirection(DcMotor.Direction.FORWARD);
-            intake.setPower(FULL_POWER / 2); 
-        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DURATION + 0.5 + feedingStartSecond) && !feedingLeft) { // extra scope after feeder down
-            intake.setDirection(DcMotor.Direction.REVERSE);
-            intake.setPower(FULL_POWER);
-        } else if (t > feedingStartSecond) { // Feeding completed
+        } else if (t > (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond) && !feedingLeft) { 
+            // Start third ball sequence after feeder is down
+            if (!bringThirdBall) {
+                bringThirdBall = true;
+                thirdBallTimer.reset();
+            }
+            // Complete feeding - third ball will take over
+            intake.setPower(STOP_POWER);
+            feedingRight = false;
+            feedingStartSecond = 0.0;
+        } else if (t > (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { 
+            // If other feeder is active, just complete without third ball
             intake.setPower(STOP_POWER);
             feedingRight = false;
             feedingStartSecond = 0.0;
@@ -521,6 +531,7 @@ public class DECODETeleop extends LinearOpMode {
     ///////////////////////////////
     // Method to bring third ball - FIXED
     // This now has priority and won't be interrupted
+    // Called by feeding sequences or manually via right_trigger
     //////////////////////////////
     private void bringThirdBall() {
         if (!bringThirdBall) return;
@@ -541,7 +552,7 @@ public class DECODETeleop extends LinearOpMode {
         } else if (t > 0.35) {
             // Sequence complete
             intake.setPower(STOP_POWER);
-            bringThirdBall = false; // at 13.36 V
+            bringThirdBall = false;
         }
     }
     

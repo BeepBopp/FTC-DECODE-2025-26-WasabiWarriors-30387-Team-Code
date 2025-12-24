@@ -146,7 +146,7 @@ public class DECODETeleop extends LinearOpMode {
             
             double y = -gamepad2.left_stick_y;
             double x = gamepad2.left_stick_x;
-            double rxRaw = gamepad2.right_stick_x;
+            double rxRaw = gamepad2.right_stick_x * 0.75;
 
             // Reduce turn power when driving forward/strafing to maintain speed
             double driveMag = Math.min(1.0, Math.hypot(x, y));
@@ -194,7 +194,7 @@ public class DECODETeleop extends LinearOpMode {
             ///////////////////////////////////
 
             // Feeding - Left
-            if (gamepad1.x && !lastX) {
+            if (gamepad1.x && !lastX && !bringThirdBall) {  // Added !bringThirdBall check
                 // Press X to raise left feeder
                 feedingLeft = true;
                 leftFeederTimer.reset();
@@ -209,7 +209,7 @@ public class DECODETeleop extends LinearOpMode {
             }
 
             // Feeding - Right
-            if (gamepad1.b && !lastB) {
+            if (gamepad1.b && !lastB && !bringThirdBall) {  // Added !bringThirdBall check
                 // Press B to raise right feeder
                 feedingRight = true;
                 rightFeederTimer.reset();
@@ -224,7 +224,7 @@ public class DECODETeleop extends LinearOpMode {
             }
             
             // Feeding - Left and Right
-            if (gamepad1.a && !lastA) { // Turn on shooter and wait if not on
+            if (gamepad1.a && !lastA && !bringThirdBall) { // Added !bringThirdBall check
                 // Press A to raise both left and right feeders
                 feedingLeft = true;
                 feedingRight = true;
@@ -259,7 +259,16 @@ public class DECODETeleop extends LinearOpMode {
                 }
             }
             lastY = gamepad1.y; // Catch button hold and release
-
+            
+            // Third ball sequence trigger
+            if (gamepad1.right_trigger > 0.1 && !feedingLeft && !feedingRight && !bringThirdBall) {
+                bringThirdBall = true;
+                thirdBallTimer.reset();
+            }
+            
+            // Update third ball sequence (this has priority)
+            bringThirdBall();
+            
             // Holding dpad UP to increase shooting power
             if (gamepad1.dpad_up && shootingMotorIsOn) {
                 // Set shooting motor power to high
@@ -273,7 +282,7 @@ public class DECODETeleop extends LinearOpMode {
             }
 
             //
-            // Raise feeer to unstuck the balls
+            // Raise feeder to unstuck the balls
             // 
             if (gamepad1.dpad_down && !lastDDown) {
                 feederUp = !feederUp;  // cycle feedup Up and Down states
@@ -292,69 +301,44 @@ public class DECODETeleop extends LinearOpMode {
             //////////////////////////////
             //
             // Button press to enable Intake Functions
+            // ONLY IF NOT running third ball sequence
             //
             /////////////////////////////
-            if(HOLD_TO_RUN_INTAKE) // Selecting mode to enable Intake 
-            {
-                if (gamepad1.left_trigger > 0.1) {
-                    // Hold bumper to turn on intake
-                    turnIntakeToScoop();
+            if (!bringThirdBall) {  // CRITICAL: Don't interfere with third ball sequence
+                if(HOLD_TO_RUN_INTAKE) // Selecting mode to enable Intake 
+                {
+                    if (gamepad1.left_trigger > 0.1) {
+                        // Hold bumper to turn on intake
+                        turnIntakeToScoop();
+                    }
+                    /*
+                    else if( y > 0.0 && y < AUTO_SCOPE_STOP_SPEED && AUTO_SCOOP_FWD) {
+                        // Auto scooping enabled when moving forward
+                        turnIntakeToScoop();
+                    }
+                    */
+                    else if (gamepad1.right_bumper) {
+                        // Hold trigger to spit
+                        turnIntakeToSpit();
+                    }
+                    else if (!pulsatileIntake) {
+                        // Intake off (unless pulsatile is active)
+                        intake.setPower(STOP_POWER);
+                    }
                 }
-                /*
-                else if( y > 0.0 && y < AUTO_SCOPE_STOP_SPEED && AUTO_SCOOP_FWD) {
-                    // Auto scooping enabled when moving forward
-                    turnIntakeToScoop();
-                }
-                */
-                else if (gamepad1.right_bumper) {
-                    // Hold trigger to spit
-                    turnIntakeToSpit();
-                }
-                else {
-                    // Intake off
-                    intake.setPower(STOP_POWER);
-                }
-            }
-            /*
-            else
-            {
-                if (gamepad1.right_bumper && !lastRightBumper) {
-                // Right bumper press: Toggle scoop
-                intakeScoopActive = !intakeScoopActive;
-                }
-                if (gamepad1.left_bumper && !lastLeftBumper) {
-                    // Left bumper press: Force off
-                    intakeScoopActive = false;
-                }
-            }
-            // Apply current state
-            if (intakeScoopActive) {
-                turnIntakeToScoop();
-            } else if (gamepad1.right_bumper) {
-                turnIntakeToSpit();
-            } else {
-                intake.setPower(STOP_POWER);
-            }
-            */
-            
-            
-            if (gamepad1.right_trigger > 0.1) {
-                bringThirdBall = true;
-                thirdBallTimer.reset();
-            }
-            
-            bringThirdBall();
-            
-            if (gamepad1.left_bumper) {
-                if (!pulsatileIntake) {
-                    pulsatileIntake = true;
-                    pulsatileIntakeTimer.reset();
-                }
-                pulsatileIntake();  
-            } else {
-                if (pulsatileIntake) {
-                    pulsatileIntake = false;
-                    intake.setPower(STOP_POWER);
+                
+                // Pulsatile intake
+                if (gamepad1.left_bumper) {
+                    if (!pulsatileIntake) {
+                        pulsatileIntake = true;
+                        pulsatileIntakeTimer.reset();
+                    }
+                    pulsatileIntake();  
+                } else {
+                    if (pulsatileIntake) {
+                        pulsatileIntake = false;
+                        intake.setPower(STOP_POWER);
+                    }
                 }
             }
             
@@ -373,6 +357,8 @@ public class DECODETeleop extends LinearOpMode {
                 }
             }
 
+            telemetry.addData("Third Ball Active", bringThirdBall);
+            telemetry.addData("Feeding L/R", feedingLeft + "/" + feedingRight);
             telemetry.update();
         }
     } 
@@ -410,7 +396,7 @@ public class DECODETeleop extends LinearOpMode {
     }
 
     ////////////////////////////////////////////
-    // Tank turn left method
+    // Tank turn right method
     //////////////////////////////////////////
     private void updateTankTurnRight() {
         if (!turningRight) return;
@@ -493,7 +479,7 @@ public class DECODETeleop extends LinearOpMode {
             leftBringUp.setPosition(LEFT_BRINGUP_POS);
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { // lower the arms
             leftBringUp.setPosition(REST_POS);
-        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond) /*&& !feedingRight*/) { // extra scope after arm is down
+        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond)) { // extra scope after arm is down
             intake.setDirection(DcMotor.Direction.FORWARD);
             intake.setPower(FULL_POWER/2);
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DURATION + 0.5 + feedingStartSecond) && !feedingRight) { // extra scope after arm is down
@@ -519,7 +505,7 @@ public class DECODETeleop extends LinearOpMode {
             rightBringUp.setPosition(RIGHT_BRINGUP_POS);
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { // lower the arms
             rightBringUp.setPosition(REST_POS);
-        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond) /*&& !feedingLeft*/) { // extra scope after feeder down
+        } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + 0.5 + feedingStartSecond)) { // extra scope after feeder down
             intake.setDirection(DcMotor.Direction.FORWARD);
             intake.setPower(FULL_POWER / 2); 
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DURATION + 0.5 + feedingStartSecond) && !feedingLeft) { // extra scope after feeder down
@@ -532,26 +518,36 @@ public class DECODETeleop extends LinearOpMode {
         }
     }
 
+    ///////////////////////////////
+    // Method to bring third ball - FIXED
+    // This now has priority and won't be interrupted
+    //////////////////////////////
     private void bringThirdBall() {
         if (!bringThirdBall) return;
         
         double t = thirdBallTimer.seconds();
         
         if (t > 0 && t < 0.2) {
+            // Stop intake briefly
             intake.setPower(STOP_POWER);
         } else if (t > 0.2 && t < 0.7) {
+            // Spit forward at half power
             intake.setDirection(DcMotor.Direction.FORWARD);
             intake.setPower(FULL_POWER/2);
-        } else if (t > 0.7 && t < 1.4) {
+        } else if (t > 0.7 && t < 1.2) {
+            // REVERSE scoop at FULL POWER - this should now work!
             intake.setDirection(DcMotor.Direction.REVERSE);
             intake.setPower(FULL_POWER);
-        } else if (t > 1.4) {
+        } else if (t > 1.7) {
+            // Sequence complete
             intake.setPower(STOP_POWER);
-            
             bringThirdBall = false;
         }
     }
     
+    ///////////////////////////////
+    // Pulsatile intake for clearing jams
+    //////////////////////////////
     private void pulsatileIntake() {
         if (!pulsatileIntake) return;
         
@@ -571,7 +567,7 @@ public class DECODETeleop extends LinearOpMode {
     }
     
     private void setBrakeOn() {
-        // Set FLOAT before powering for smooth turns
+        // Set BRAKE for precise stopping
         leftFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         leftBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -579,7 +575,7 @@ public class DECODETeleop extends LinearOpMode {
     }
     
     private void setBrakeOff() {
-        // Set FLOAT before powering for smooth turns
+        // Set FLOAT for smooth turns
         leftFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         leftBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         rightFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);

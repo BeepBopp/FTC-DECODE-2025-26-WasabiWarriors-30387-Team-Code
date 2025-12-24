@@ -527,18 +527,18 @@ public class DECODETeleop extends LinearOpMode {
         
         double t = thirdBallTimer.seconds();
         
-        if (t > 0 && t < 0.2) {
+        if (t > 0 && t < 0.1) {
             // Stop intake briefly
             intake.setPower(STOP_POWER);
-        } else if (t > 0.2 && t < 0.35) {
+        } else if (t > 0.1 && t < 0.2) {
             // Spit forward at half power
             intake.setDirection(DcMotor.Direction.FORWARD);
             intake.setPower(FULL_POWER / 2);
-        } else if (t > 0.35 && t < 0.5) {
+        } else if (t > 0.2 && t < 0.35) {
             // REVERSE scoop at FULL POWER - this should now work!
             intake.setDirection(DcMotor.Direction.REVERSE);
             intake.setPower(FULL_POWER);
-        } else if (t > 0.5) {
+        } else if (t > 0.35) {
             // Sequence complete
             intake.setPower(STOP_POWER);
             bringThirdBall = false; // at 13.36 V

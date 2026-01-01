@@ -11,7 +11,6 @@ import com.acmerobotics.roadrunner.Action;
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.SequentialAction;
 import com.acmerobotics.roadrunner.SleepAction;
-import com.acmerobotics.roadrunner.TrajectoryActionBuilder;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.acmerobotics.roadrunner.ftc.Actions;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
@@ -22,8 +21,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 
 @Config
-@Autonomous(name = "Near Blue Side Auto - Roadrunner (Better)", group = "Autonomous")
-public class NearBlueSideAutoBetter extends LinearOpMode {
+@Autonomous(name = "Near Blue Side Auto", group = "Autonomous")
+public class NearBlueSideAuto extends LinearOpMode {
     public class Shoot {
         private DcMotorEx leftShooter, rightShooter;
 
@@ -228,31 +227,29 @@ public class NearBlueSideAutoBetter extends LinearOpMode {
                 .strafeTo(new Vector2d(2.5, 70.0))
                 .build();
         Action goToShootSecond = drive.actionBuilder(new Pose2d(2.5, 70.0, Math.toRadians(162)))
-                .strafeToLinearHeading(new Vector2d(42.0, 88.0), Math.toRadians(121))
+                .strafeToLinearHeading(new Vector2d(42.0, 88.0), Math.toRadians(124))
                 .build();
-        Action goToIntakeThird = drive.actionBuilder(new Pose2d(42.0, 88.0, Math.toRadians(121)))
+        Action goToIntakeThird = drive.actionBuilder(new Pose2d(42.0, 88.0, Math.toRadians(124)))
                 .strafeToLinearHeading(new Vector2d(32.0, 42.0), Math.toRadians(163))
                 .build();
-        Action intakeThird = drive.actionBuilder(new Pose2d(32.0, 47.0, Math.toRadians(163)))
-                .lineToY(56.0)
+        Action intakeThird = drive.actionBuilder(new Pose2d(32.0, 42.0, Math.toRadians(163)))
+                .lineToY(51.0)
                 .build();
-        Action goToShootThird = drive.actionBuilder(new Pose2d(32.0, 58.0, Math.toRadians(163)))
-                .lineToY(55.0)
+        Action goToShootThird = drive.actionBuilder(new Pose2d(32.0, 51.0, Math.toRadians(163)))
+                .strafeToLinearHeading(new Vector2d(51.0, 80.0), Math.toRadians(110))
                 .build();
-/*
-        Action goToIntakeForth = drive.actionBuilder(new Pose2d(32.0, 55.0, Math.toRadians(121.0)))
-                .strafeToLinearHeading(new Vector2d(32.5, 13.5), Math.toRadians(163))
+        Action goToIntakeForth = drive.actionBuilder(new Pose2d(51.0, 80.0, Math.toRadians(110)))
+                .strafeToLinearHeading(new Vector2d(26.5, 14.0), Math.toRadians(163))
                 .build();
-        Action intakeForth = drive.actionBuilder(new Pose2d(32.5, 13.5, Math.toRadians(163)))
-                .lineToY(25.0)
+        Action intakeForth = drive.actionBuilder(new Pose2d(26.5, 14.0, Math.toRadians(163)))
+                .lineToY(21.5)
                 .build();
-        Action goToShootForth = drive.actionBuilder(new Pose2d(32.0, 25.0, Math.toRadians(163)))
-                .strafeToLinearHeading(new Vector2d(70.0, 78.0), Math.toRadians(109.5))
+        Action goToShootForth = drive.actionBuilder(new Pose2d(26.5, 21.5, Math.toRadians(163)))
+                .strafeToLinearHeading(new Vector2d(60.0, 74.0), Math.toRadians(109.5))
                 .build();
-        Action goToFinalPosition = drive.actionBuilder(new Pose2d(70.0, 78.0, Math.toRadians(109.5)))
-                .strafeToLinearHeading(new Vector2d(32.0, 57.5), Math.toRadians(163))
+        Action goToFinalPosition = drive.actionBuilder(new Pose2d(60.0, 74.0, Math.toRadians(109.5)))
+                .strafeToLinearHeading(new Vector2d(32.0, 62.0), Math.toRadians(163))
                 .build();
-         */
 
         waitForStart();
 
@@ -266,7 +263,7 @@ public class NearBlueSideAutoBetter extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(0.5),
+                        new SleepAction(0.25),
                         feed.bringUp(),
                         feed.bringDown(),
                         shoot.turnShooterOff(),
@@ -274,7 +271,7 @@ public class NearBlueSideAutoBetter extends LinearOpMode {
                         goToIntakeSecond,
                         intake.turnIntakeOn(),
                         intakeSecond,
-                        new SleepAction(0.8),
+                        new SleepAction(0.5),
                         // shoot third set of balls
                         shoot.turnShooterOn(),
                         goToShootSecond,
@@ -282,14 +279,13 @@ public class NearBlueSideAutoBetter extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(0.5),
+                        new SleepAction(0.25),
                         feed.bringUp(),
                         feed.bringDown(),
                         // pick up third set of balls
-                        goToIntakeThird
-//                        intake.turnIntakeOn(),
-//                        intakeThird
-                        /*
+                        goToIntakeThird,
+                        intake.turnIntakeOn(),
+                        intakeThird,
                         // shoot second set of balls
                         shoot.turnShooterOn(),
                         goToShootThird,
@@ -297,7 +293,7 @@ public class NearBlueSideAutoBetter extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(0.5),
+                        new SleepAction(0.25),
                         feed.bringUp(),
                         feed.bringDown(),
                         // pick up forth set of balls
@@ -311,12 +307,10 @@ public class NearBlueSideAutoBetter extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(0.5),
+                        new SleepAction(0.25),
                         feed.bringUp(),
                         feed.bringDown(),
                         goToFinalPosition
-
-                         */
                 )
         );
     }

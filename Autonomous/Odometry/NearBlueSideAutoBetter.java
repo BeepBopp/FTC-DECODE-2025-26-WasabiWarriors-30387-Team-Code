@@ -22,8 +22,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 
 @Config
-@Autonomous(name = "Near Blue Side Auto - Roadrunner", group = "Autonomous")
-public class NearBlueSideAuto extends LinearOpMode {
+@Autonomous(name = "Near Blue Side Auto - Roadrunner (Better)", group = "Autonomous")
+public class NearBlueSideAutoBetter extends LinearOpMode {
     public class Shoot {
         private DcMotorEx leftShooter, rightShooter;
 
@@ -44,7 +44,7 @@ public class NearBlueSideAuto extends LinearOpMode {
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
-                    leftShooter.setVelocity(1650);
+                    leftShooter.setVelocity(1675);
                     rightShooter.setVelocity(1675);
                     initialized = true;
                 }
@@ -220,32 +220,39 @@ public class NearBlueSideAuto extends LinearOpMode {
                 .lineToX(40.0)
                 .build();
         Action goToIntakeSecond = drive.actionBuilder(new Pose2d(40.0, 124.0, Math.toRadians(125)))
-                .strafeToLinearHeading(new Vector2d(38.0, 74.5), Math.toRadians(163))
+                .strafeToLinearHeading(new Vector2d(37.0, 71.5), Math.toRadians(162))
                 .build();
-        Action intakeSecond = drive.actionBuilder(new Pose2d(38.0, 74.5, Math.toRadians(163)))
-                .lineToY(82.0)
+        Action intakeSecond = drive.actionBuilder(new Pose2d(37.0, 71.5, Math.toRadians(162)))
+                .lineToY(79.0)
+                .strafeTo(new Vector2d(10.0, 70.0))
+                .strafeTo(new Vector2d(2.5, 70.0))
                 .build();
-        Action goToShootSecond = drive.actionBuilder(new Pose2d(38.0, 84.0, Math.toRadians(163)))
-                .strafeToLinearHeading(new Vector2d(60.0, 88.0), Math.toRadians(120))
+        Action goToShootSecond = drive.actionBuilder(new Pose2d(2.5, 70.0, Math.toRadians(162)))
+                .strafeToLinearHeading(new Vector2d(42.0, 88.0), Math.toRadians(121))
                 .build();
-        Action goToIntakeThird = drive.actionBuilder(new Pose2d(60.0, 88.0, Math.toRadians(120)))
-                .strafeToLinearHeading(new Vector2d(35.0, 38.0), Math.toRadians(166.5))
+        Action goToIntakeThird = drive.actionBuilder(new Pose2d(42.0, 88.0, Math.toRadians(121)))
+                .strafeToLinearHeading(new Vector2d(32.0, 42.0), Math.toRadians(163))
                 .build();
-        Action intakeThird = drive.actionBuilder(new Pose2d(35.0, 49.0, Math.toRadians(163)))
-                .lineToY(57.0)
+        Action intakeThird = drive.actionBuilder(new Pose2d(32.0, 47.0, Math.toRadians(163)))
+                .lineToY(56.0)
                 .build();
-        Action goToShootThird = drive.actionBuilder(new Pose2d(35.0, 55.0, Math.toRadians(163)))
-                .strafeToLinearHeading(new Vector2d(54.0, 85.0), Math.toRadians(120))
+        Action goToShootThird = drive.actionBuilder(new Pose2d(32.0, 58.0, Math.toRadians(163)))
+                .lineToY(55.0)
                 .build();
-        Action goToIntakeForth = drive.actionBuilder(new Pose2d(54.0, 85.0, Math.toRadians(120)))
-                .strafeToLinearHeading(new Vector2d(32.5, 15.0), Math.toRadians(163))
+/*
+        Action goToIntakeForth = drive.actionBuilder(new Pose2d(32.0, 55.0, Math.toRadians(121.0)))
+                .strafeToLinearHeading(new Vector2d(32.5, 13.5), Math.toRadians(163))
                 .build();
-        Action intakeForth = drive.actionBuilder(new Pose2d(32.5, 15.0, Math.toRadians(163)))
+        Action intakeForth = drive.actionBuilder(new Pose2d(32.5, 13.5, Math.toRadians(163)))
                 .lineToY(25.0)
                 .build();
         Action goToShootForth = drive.actionBuilder(new Pose2d(32.0, 25.0, Math.toRadians(163)))
-                .strafeToLinearHeading(new Vector2d(70.0, 78.0), Math.toRadians(111.5))
+                .strafeToLinearHeading(new Vector2d(70.0, 78.0), Math.toRadians(109.5))
                 .build();
+        Action goToFinalPosition = drive.actionBuilder(new Pose2d(70.0, 78.0, Math.toRadians(109.5)))
+                .strafeToLinearHeading(new Vector2d(32.0, 57.5), Math.toRadians(163))
+                .build();
+         */
 
         waitForStart();
 
@@ -259,7 +266,7 @@ public class NearBlueSideAuto extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.5),
                         feed.bringUp(),
                         feed.bringDown(),
                         shoot.turnShooterOff(),
@@ -267,29 +274,30 @@ public class NearBlueSideAuto extends LinearOpMode {
                         goToIntakeSecond,
                         intake.turnIntakeOn(),
                         intakeSecond,
-                        // shoot second set of balls
+                        new SleepAction(0.8),
+                        // shoot third set of balls
                         shoot.turnShooterOn(),
                         goToShootSecond,
                         intake.turnIntakeOff(),
-                        new SleepAction(0.5),
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.5),
                         feed.bringUp(),
                         feed.bringDown(),
                         // pick up third set of balls
-                        goToIntakeThird,
-                        intake.turnIntakeOn(),
-                        intakeThird,
-                        // shoot third set of balls
+                        goToIntakeThird
+//                        intake.turnIntakeOn(),
+//                        intakeThird
+                        /*
+                        // shoot second set of balls
                         shoot.turnShooterOn(),
                         goToShootThird,
                         intake.turnIntakeOff(),
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.5),
                         feed.bringUp(),
                         feed.bringDown(),
                         // pick up forth set of balls
@@ -303,9 +311,12 @@ public class NearBlueSideAuto extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.5),
                         feed.bringUp(),
-                        feed.bringDown()
+                        feed.bringDown(),
+                        goToFinalPosition
+
+                         */
                 )
         );
     }

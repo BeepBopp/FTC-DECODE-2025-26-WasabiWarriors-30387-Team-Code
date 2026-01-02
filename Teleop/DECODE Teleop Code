@@ -22,7 +22,7 @@ public class DECODETeleop extends LinearOpMode {
     // 
     final double DRIVETRAIN_SPEED = 1;                 // Set the speed of the robot (Must be > 0.8) 
 
-    final double LEFT_SHOOTER_VELOCITY = 1650;  //1650;        // Set left shooting motor normal speed
+    final double LEFT_SHOOTER_VELOCITY = 1675;  //1650;        // Set left shooting motor normal speed
     final double RIGHT_SHOOTER_VELOCITY = 1675; //1675;        // Set right shooting motor normal speed
     final double LEFT_SHOOTER_VELOCITY_HIGH = 2150;     // Set left shooting motor High speed
     final double RIGHT_SHOOTER_VELOCITY_HIGH = 2250;    // Set right shooting motor High speed
@@ -40,16 +40,17 @@ public class DECODETeleop extends LinearOpMode {
     final boolean HOLD_TO_RUN_INTAKE = true;    // Enable intake (True = Hold, False = Single Press)
     final boolean AUTO_SCOOP_FWD = true;         // Enable intake moving forward
     final double AUTO_SCOPE_STOP_SPEED = 0.8;    // Max speed auto scooping remains on
-    final double LONGEST_SHOOTING_MOTOR_DURATION = 2.0; // Longest time shooting motor can stay on.
+    final double LONGEST_SHOOTING_MOTOR_DURATION = 6.0; // Longest time shooting motor can stay on.
     final double SHOOTER_SPOOLUP_TIME = 1;    // Wait time to spool up motor
 
     final double STOP_POWER = 0;        // Set Intake motor stop power. Always 0.
     final double FEEDER_FOLLOWUP_DELAY = 0.2;        // Set wait time to turn on 2nd ball scoop after feeder down. (Must be > 0.2)    
-    final double LEFT_BRINGUP_POS = 0.95;    // Set left feeder up position
-    final double RIGHT_BRINGUP_POS = 0.04;  // Set right feeder up position
+    final double LEFT_BRINGUP_POS = 0.922;    // Set left feeder up position
+    final double RIGHT_BRINGUP_POS = 0.037;  // Set right feeder up position
     final double HALFUP_OFFSET_POS = 0.18;    // Set feeder half way up position (higher number = lower position) 
     final double FULL_POWER = 1.0;  
-    final double REST_POS = 0.5;    // Set both left and right feeder position (0.5 is the best)
+    final double LEFT_REST_POS = 0.473;    // Set both left and right feeder position 
+    final double RIGHT_REST_POS = 0.498;
     
     //
     // Parameter for hardware state machine 
@@ -291,8 +292,8 @@ public class DECODETeleop extends LinearOpMode {
                     rightBringUp.setPosition(RIGHT_BRINGUP_POS);
                     leftBringUp.setPosition(LEFT_BRINGUP_POS);
                 } else {
-                    rightBringUp.setPosition(REST_POS);
-                    leftBringUp.setPosition(REST_POS);
+                    rightBringUp.setPosition(RIGHT_REST_POS);
+                    leftBringUp.setPosition(LEFT_REST_POS);
                 }
             }
             
@@ -478,7 +479,7 @@ public class DECODETeleop extends LinearOpMode {
             intake.setPower(STOP_POWER);
             leftBringUp.setPosition(LEFT_BRINGUP_POS);
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { // lower the arms
-            leftBringUp.setPosition(REST_POS);
+            leftBringUp.setPosition(LEFT_REST_POS);
         } else if (t > (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond) && !feedingRight) { 
             // Start third ball sequence after feeder is down
             if (!bringThirdBall) {
@@ -509,7 +510,7 @@ public class DECODETeleop extends LinearOpMode {
             intake.setPower(STOP_POWER);
             rightBringUp.setPosition(RIGHT_BRINGUP_POS);
         } else if (t > feedingStartSecond && t < (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond)) { // lower the arms
-            rightBringUp.setPosition(REST_POS);
+            rightBringUp.setPosition(RIGHT_REST_POS);
         } else if (t > (FEEDER_UP_TIME + FEEDER_FOLLOWUP_DELAY + feedingStartSecond) && !feedingLeft) { 
             // Start third ball sequence after feeder is down
             if (!bringThirdBall) {

@@ -167,8 +167,8 @@ public class NearBlueSideAuto extends LinearOpMode {
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
-                    leftBringUp.setPosition(0.95);
-                    rightBringUp.setPosition(0.04);
+                    leftBringUp.setPosition(0.922);
+                    rightBringUp.setPosition(0.037);
                     startTime = System.currentTimeMillis();
                     initialized = true;
                 }
@@ -190,8 +190,8 @@ public class NearBlueSideAuto extends LinearOpMode {
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
-                    leftBringUp.setPosition(0.5);
-                    rightBringUp.setPosition(0.5);
+                    leftBringUp.setPosition(0.474);
+                    rightBringUp.setPosition(0.498);
                     startTime = System.currentTimeMillis();
                     initialized = true;
                 }

@@ -229,18 +229,18 @@ public class NearRedSideAuto extends LinearOpMode {
                 .strafeTo(new Vector2d(-2.5, 70.0))
                 .build();
         Action goToShootSecond = drive.actionBuilder(new Pose2d(-2.5, 70.0, Math.toRadians(18)))
-                .strafeToLinearHeading(new Vector2d(-42.0, 88.0), Math.toRadians(53))
+                .strafeToLinearHeading(new Vector2d(-42.0, 88.0), Math.toRadians(50))
                 .build();
-        Action goToIntakeThird = drive.actionBuilder(new Pose2d(-42.0, 88.0, Math.toRadians(53)))
+        Action goToIntakeThird = drive.actionBuilder(new Pose2d(-42.0, 88.0, Math.toRadians(50)))
                 .strafeToLinearHeading(new Vector2d(-32.0, 40.0), Math.toRadians(17))
                 .build();
         Action intakeThird = drive.actionBuilder(new Pose2d(-32.0, 40.0, Math.toRadians(17)))
                 .lineToY(49.0)
                 .build();
         Action goToShootThird = drive.actionBuilder(new Pose2d(-32.0, 49.0, Math.toRadians(17)))
-                .strafeToLinearHeading(new Vector2d(-51.0, 80.0), Math.toRadians(67))
+                .strafeToLinearHeading(new Vector2d(-51.0, 80.0), Math.toRadians(64))
                 .build();
-        Action goToIntakeForth = drive.actionBuilder(new Pose2d(-51.0, 80.0, Math.toRadians(67)))
+        Action goToIntakeForth = drive.actionBuilder(new Pose2d(-51.0, 80.0, Math.toRadians(64)))
                 .strafeToLinearHeading(new Vector2d(-26.5, 14.0), Math.toRadians(17))
                 .build();
         Action intakeForth = drive.actionBuilder(new Pose2d(-26.5, 14.0, Math.toRadians(17)))

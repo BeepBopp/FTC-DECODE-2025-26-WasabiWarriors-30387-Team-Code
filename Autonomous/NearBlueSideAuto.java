@@ -239,12 +239,12 @@ public class NearBlueSideAuto extends LinearOpMode {
                 .strafeToLinearHeading(new Vector2d(51.0, 80.0), Math.toRadians(110))
                 .build();
         Action goToIntakeForth = drive.actionBuilder(new Pose2d(51.0, 80.0, Math.toRadians(110)))
-                .strafeToLinearHeading(new Vector2d(26.5, 14.0), Math.toRadians(163))
+                .strafeToLinearHeading(new Vector2d(29.5, 14.0), Math.toRadians(163))
                 .build();
-        Action intakeForth = drive.actionBuilder(new Pose2d(26.5, 14.0, Math.toRadians(163)))
-                .lineToY(21.5)
+        Action intakeForth = drive.actionBuilder(new Pose2d(29.5, 14.0, Math.toRadians(163)))
+                .lineToY(23.0)
                 .build();
-        Action goToShootForth = drive.actionBuilder(new Pose2d(26.5, 21.5, Math.toRadians(163)))
+        Action goToShootForth = drive.actionBuilder(new Pose2d(29.5, 23.0, Math.toRadians(163)))
                 .strafeToLinearHeading(new Vector2d(52.0, 80.0), Math.toRadians(114))
                 .build();
         Action goToFinalPosition = drive.actionBuilder(new Pose2d(60.0, 80.0, Math.toRadians(109.5)))

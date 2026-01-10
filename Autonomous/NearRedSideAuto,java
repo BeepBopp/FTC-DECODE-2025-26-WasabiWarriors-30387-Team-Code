@@ -133,7 +133,7 @@ public class NearRedSideAuto extends LinearOpMode {
                     intake.setPower(0);
                 } else if (elapsed > 0.1 && elapsed < 0.2) {
                     intake.setDirection(DcMotor.Direction.FORWARD);
-                    intake.setPower(0.5);
+                    intake.setPower(0.7);
                 } else if (elapsed > 0.2 && elapsed < 0.35) {
                     intake.setDirection(DcMotor.Direction.REVERSE);
                     intake.setPower(1.0);
@@ -218,26 +218,26 @@ public class NearRedSideAuto extends LinearOpMode {
 
         // All x-coordinates negated, headings mirrored
         Action goToShootFirst = drive.actionBuilder(initialPose)
-                .lineToX(-40.0)
+                .lineToX(-39.0)
                 .build();
-        Action goToIntakeSecond = drive.actionBuilder(new Pose2d(-40.0, 124.0, Math.toRadians(55)))
-                .strafeToLinearHeading(new Vector2d(-37.0, 71.5), Math.toRadians(18))
+        Action goToIntakeSecond = drive.actionBuilder(new Pose2d(-39.0, 124.0, Math.toRadians(55)))
+                .strafeToLinearHeading(new Vector2d(-37.0, 72.5), Math.toRadians(18))
                 .build();
-        Action intakeSecond = drive.actionBuilder(new Pose2d(-37.0, 71.5, Math.toRadians(18)))
-                .lineToY(79.0)
+        Action intakeSecond = drive.actionBuilder(new Pose2d(-37.0, 72.5, Math.toRadians(18)))
+                .lineToY(80.0)
                 .strafeTo(new Vector2d(-10.0, 70.0))
                 .strafeTo(new Vector2d(-2.5, 70.0))
                 .build();
         Action goToShootSecond = drive.actionBuilder(new Pose2d(-2.5, 70.0, Math.toRadians(18)))
-                .strafeToLinearHeading(new Vector2d(-46.0, 84.0), Math.toRadians(50))
+                .strafeToLinearHeading(new Vector2d(-50.0, 88.0), Math.toRadians(50))
                 .build();
-        Action goToIntakeThird = drive.actionBuilder(new Pose2d(-46.0, 84.0, Math.toRadians(50)))
-                .strafeToLinearHeading(new Vector2d(-32.0, 40.0), Math.toRadians(17))
+        Action goToIntakeThird = drive.actionBuilder(new Pose2d(-50.0, 88.0, Math.toRadians(50)))
+                .strafeToLinearHeading(new Vector2d(-32.0, 42.0), Math.toRadians(17))
                 .build();
-        Action intakeThird = drive.actionBuilder(new Pose2d(-32.0, 40.0, Math.toRadians(17)))
-                .lineToY(49.0)
+        Action intakeThird = drive.actionBuilder(new Pose2d(-32.0, 42.0, Math.toRadians(17)))
+                .lineToY(51.0)
                 .build();
-        Action goToShootThird = drive.actionBuilder(new Pose2d(-32.0, 49.0, Math.toRadians(17)))
+        Action goToShootThird = drive.actionBuilder(new Pose2d(-32.0, 51.0, Math.toRadians(17)))
                 .strafeToLinearHeading(new Vector2d(-51.0, 80.0), Math.toRadians(64))
                 .build();
         Action goToIntakeForth = drive.actionBuilder(new Pose2d(-51.0, 80.0, Math.toRadians(64)))
@@ -247,10 +247,10 @@ public class NearRedSideAuto extends LinearOpMode {
                 .lineToY(23.0)
                 .build();
         Action goToShootForth = drive.actionBuilder(new Pose2d(-26.5, 23.0, Math.toRadians(17)))
-                .strafeToLinearHeading(new Vector2d(-60.0, 78.0), Math.toRadians(66.5))
+                .strafeToLinearHeading(new Vector2d(-56.0, 78.0), Math.toRadians(66.5))
                 .build();
         Action goToFinalPosition = drive.actionBuilder(new Pose2d(-60.0, 78.0, Math.toRadians(66.5)))
-                .strafeToLinearHeading(new Vector2d(-32.0, 62.0), Math.toRadians(17))
+                .strafeToLinearHeading(new Vector2d(-32.0, 62.0), Math.toRadians(18))
                 .build();
 
         waitForStart();
@@ -265,7 +265,7 @@ public class NearRedSideAuto extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.4),
                         feed.bringUp(),
                         feed.bringDown(),
                         shoot.turnShooterOff(),
@@ -281,7 +281,7 @@ public class NearRedSideAuto extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.4),
                         feed.bringUp(),
                         feed.bringDown(),
                         // pick up third set of balls
@@ -295,7 +295,7 @@ public class NearRedSideAuto extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.4),
                         feed.bringUp(),
                         feed.bringDown(),
                         // pick up forth set of balls
@@ -309,7 +309,7 @@ public class NearRedSideAuto extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.4),
                         feed.bringUp(),
                         feed.bringDown(),
                         goToFinalPosition

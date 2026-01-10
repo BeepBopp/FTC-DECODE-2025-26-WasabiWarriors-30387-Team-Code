@@ -133,7 +133,7 @@ public class NearBlueSideAuto extends LinearOpMode {
                     intake.setPower(0);
                 } else if (elapsed > 0.1 && elapsed < 0.2) {
                     intake.setDirection(DcMotor.Direction.FORWARD);
-                    intake.setPower(0.5);
+                    intake.setPower(0.75);
                 } else if (elapsed > 0.2 && elapsed < 0.35) {
                     intake.setDirection(DcMotor.Direction.REVERSE);
                     intake.setPower(1.0);
@@ -216,9 +216,9 @@ public class NearBlueSideAuto extends LinearOpMode {
         Feed feed = new Feed(hardwareMap);
 
         Action goToShootFirst = drive.actionBuilder(initialPose)
-                .lineToX(40.0)
+                .lineToX(41.0)
                 .build();
-        Action goToIntakeSecond = drive.actionBuilder(new Pose2d(40.0, 124.0, Math.toRadians(125)))
+        Action goToIntakeSecond = drive.actionBuilder(new Pose2d(41.0, 124.0, Math.toRadians(125)))
                 .strafeToLinearHeading(new Vector2d(37.0, 71.5), Math.toRadians(162))
                 .build();
         Action intakeSecond = drive.actionBuilder(new Pose2d(37.0, 71.5, Math.toRadians(162)))
@@ -263,7 +263,7 @@ public class NearBlueSideAuto extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.4),
                         feed.bringUp(),
                         feed.bringDown(),
                         shoot.turnShooterOff(),
@@ -279,7 +279,7 @@ public class NearBlueSideAuto extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.4),
                         feed.bringUp(),
                         feed.bringDown(),
                         // pick up third set of balls
@@ -293,7 +293,7 @@ public class NearBlueSideAuto extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.4),
                         feed.bringUp(),
                         feed.bringDown(),
                         // pick up forth set of balls
@@ -307,7 +307,7 @@ public class NearBlueSideAuto extends LinearOpMode {
                         feed.bringUp(),
                         feed.bringDown(),
                         intake.bringThirdBall(),
-                        new SleepAction(1.0 / 3),
+                        new SleepAction(0.4),
                         feed.bringUp(),
                         feed.bringDown(),
                         goToFinalPosition

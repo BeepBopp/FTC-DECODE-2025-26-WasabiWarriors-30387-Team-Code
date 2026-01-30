@@ -15,10 +15,13 @@ import com.acmerobotics.roadrunner.Vector2d;
 import com.acmerobotics.roadrunner.ftc.Actions;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 @Config
 @Autonomous(name = "Near Blue Side Auto", group = "Autonomous")
@@ -29,12 +32,15 @@ public class NearBlueSideAuto extends LinearOpMode {
         public Shoot(HardwareMap hardwareMap) {
             leftShooter = hardwareMap.get(DcMotorEx.class, "leftShooter");
             rightShooter = hardwareMap.get(DcMotorEx.class, "rightShooter");
-            leftShooter.setDirection(DcMotor.Direction.REVERSE);
-            rightShooter.setDirection(DcMotor.Direction.FORWARD);
+
+            rightShooter.setDirection(DcMotor.Direction.REVERSE);
             leftShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
             rightShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-            leftShooter.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-            rightShooter.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+
+            PIDFCoefficients leftPidfCoefficients = new PIDFCoefficients(227, 0, 0, 12.915);
+            PIDFCoefficients rightPidfCoefficients = new PIDFCoefficients(220, 0, 0, 12.815);
+            leftShooter.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, leftPidfCoefficients);
+            rightShooter.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, rightPidfCoefficients);
         }
 
         public class TurnShooterOn implements Action {
@@ -43,11 +49,11 @@ public class NearBlueSideAuto extends LinearOpMode {
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
-                    leftShooter.setVelocity(1675);
-                    rightShooter.setVelocity(1675);
+                    leftShooter.setVelocity(1100);
+                    rightShooter.setVelocity(1100);
                     initialized = true;
                 }
-                return false;  // Complete immediately, no wait time
+                return false;
             }
         }
 
@@ -76,10 +82,12 @@ public class NearBlueSideAuto extends LinearOpMode {
 
     public class Intake {
         private DcMotor intake;
+        private CRServo chute;
 
         public Intake(HardwareMap hardwareMap) {
             intake = hardwareMap.get(DcMotor.class, "intake");
-            intake.setDirection(DcMotor.Direction.REVERSE);
+            chute = hardwareMap.get(CRServo.class, "chute");
+            chute.setDirection(CRServo.Direction.REVERSE);
         }
 
         public class TurnIntakeOn implements Action {
@@ -88,7 +96,7 @@ public class NearBlueSideAuto extends LinearOpMode {
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
-                    intake.setPower(0.9);
+                    intake.setPower(1.0);
                     initialized = true;
                 }
                 return false;
@@ -105,7 +113,7 @@ public class NearBlueSideAuto extends LinearOpMode {
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
-                    intake.setPower(0);
+                    intake.setPower(0.0);
                     initialized = true;
                 }
                 return false;
@@ -116,94 +124,31 @@ public class NearBlueSideAuto extends LinearOpMode {
             return new TurnIntakeOff();
         }
 
-        public class BringThirdBall implements Action {
+        public class BringArtifacts implements Action {
             private boolean initialized = false;
-            private double startTime = 0;
+            private ElapsedTime timer;
 
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
-                    startTime = System.currentTimeMillis();
+                    timer = new ElapsedTime();
                     initialized = true;
                 }
 
-                double elapsed = (System.currentTimeMillis() - startTime) / 1000.0;
-
-                if (elapsed > 0 && elapsed < 0.1) {
+                if (timer.seconds() < 2.1) {
+                    intake.setPower(0.8);
+                    chute.setPower(1.0);
+                    return true;
+                } else {
                     intake.setPower(0);
-                } else if (elapsed > 0.1 && elapsed < 0.2) {
-                    intake.setDirection(DcMotor.Direction.FORWARD);
-                    intake.setPower(0.75);
-                } else if (elapsed > 0.2 && elapsed < 0.35) {
-                    intake.setDirection(DcMotor.Direction.REVERSE);
-                    intake.setPower(1.0);
-                } else if (elapsed >= 0.35) {
-                    intake.setPower(0);
+                    chute.setPower(0);
                     return false;
                 }
-
-                packet.put("Third Ball Sequence Time", elapsed);
-                return true;
             }
         }
 
-        public Action bringThirdBall() {
-            return new BringThirdBall();
-        }
-    }
-
-    public class Feed {
-        private Servo leftBringUp, rightBringUp;
-
-        public Feed(HardwareMap hardwareMap) {
-            leftBringUp = hardwareMap.get(Servo.class, "leftBringUp");
-            rightBringUp = hardwareMap.get(Servo.class, "rightBringUp");
-        }
-
-        public class BringUp implements Action {
-            private boolean initialized = false;
-            private double startTime = 0;
-
-            @Override
-            public boolean run(@NonNull TelemetryPacket packet) {
-                if (!initialized) {
-                    leftBringUp.setPosition(0.922);
-                    rightBringUp.setPosition(0.037);
-                    startTime = System.currentTimeMillis();
-                    initialized = true;
-                }
-
-                double elapsed = System.currentTimeMillis() - startTime;
-                packet.put("Feed Up Time", elapsed);
-                return elapsed < 500;
-            }
-        }
-
-        public Action bringUp() {
-            return new BringUp();
-        }
-
-        public class BringDown implements Action {
-            private boolean initialized = false;
-            private double startTime = 0;
-
-            @Override
-            public boolean run(@NonNull TelemetryPacket packet) {
-                if (!initialized) {
-                    leftBringUp.setPosition(0.474);
-                    rightBringUp.setPosition(0.498);
-                    startTime = System.currentTimeMillis();
-                    initialized = true;
-                }
-
-                double elapsed = System.currentTimeMillis() - startTime;
-                packet.put("Feed Down Time", elapsed);
-                return elapsed < 500;
-            }
-        }
-
-        public Action bringDown() {
-            return new BringDown();
+        public Action bringArtifacts() {
+            return new BringArtifacts();
         }
     }
 
@@ -213,7 +158,6 @@ public class NearBlueSideAuto extends LinearOpMode {
         MecanumDrive drive = new MecanumDrive(hardwareMap, initialPose);
         Shoot shoot = new Shoot(hardwareMap);
         Intake intake = new Intake(hardwareMap);
-        Feed feed = new Feed(hardwareMap);
 
         Action goToShootFirst = drive.actionBuilder(initialPose)
                 .lineToX(41.0)
@@ -247,7 +191,7 @@ public class NearBlueSideAuto extends LinearOpMode {
         Action goToShootForth = drive.actionBuilder(new Pose2d(29.5, 23.0, Math.toRadians(163)))
                 .strafeToLinearHeading(new Vector2d(52.0, 80.0), Math.toRadians(114))
                 .build();
-        Action goToFinalPosition = drive.actionBuilder(new Pose2d(60.0, 80.0, Math.toRadians(109.5)))
+        Action goToFinalPosition = drive.actionBuilder(new Pose2d(52.0, 80.0, Math.toRadians(109.5)))
                 .strafeToLinearHeading(new Vector2d(32.0, 62.0), Math.toRadians(163))
                 .build();
 
@@ -260,12 +204,7 @@ public class NearBlueSideAuto extends LinearOpMode {
                         // shoot first 3 balls
                         shoot.turnShooterOn(),
                         goToShootFirst,
-                        feed.bringUp(),
-                        feed.bringDown(),
-                        intake.bringThirdBall(),
-                        new SleepAction(0.4),
-                        feed.bringUp(),
-                        feed.bringDown(),
+                        intake.bringArtifacts(),
                         shoot.turnShooterOff(),
                         // pick up second set of balls
                         goToIntakeSecond,
@@ -276,12 +215,7 @@ public class NearBlueSideAuto extends LinearOpMode {
                         shoot.turnShooterOn(),
                         goToShootSecond,
                         intake.turnIntakeOff(),
-                        feed.bringUp(),
-                        feed.bringDown(),
-                        intake.bringThirdBall(),
-                        new SleepAction(0.4),
-                        feed.bringUp(),
-                        feed.bringDown(),
+                        intake.bringArtifacts(),
                         // pick up third set of balls
                         goToIntakeThird,
                         intake.turnIntakeOn(),
@@ -290,12 +224,7 @@ public class NearBlueSideAuto extends LinearOpMode {
                         shoot.turnShooterOn(),
                         goToShootThird,
                         intake.turnIntakeOff(),
-                        feed.bringUp(),
-                        feed.bringDown(),
-                        intake.bringThirdBall(),
-                        new SleepAction(0.4),
-                        feed.bringUp(),
-                        feed.bringDown(),
+                        intake.bringArtifacts(),
                         // pick up forth set of balls
                         goToIntakeForth,
                         intake.turnIntakeOn(),
@@ -304,12 +233,7 @@ public class NearBlueSideAuto extends LinearOpMode {
                         shoot.turnShooterOn(),
                         goToShootForth,
                         intake.turnIntakeOff(),
-                        feed.bringUp(),
-                        feed.bringDown(),
-                        intake.bringThirdBall(),
-                        new SleepAction(0.4),
-                        feed.bringUp(),
-                        feed.bringDown(),
+                        intake.bringArtifacts(),
                         goToFinalPosition
                 )
         );

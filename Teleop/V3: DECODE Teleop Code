@@ -192,8 +192,8 @@ public class DECODETeleopCode extends LinearOpMode {
             }
             lastY = gamepad1.y;
 
-            // Handle regular auto sequence (gamepad1.a)
-            if (isAutoRunning && autoTimer.seconds() > GATE_OPEN_TIME) {
+            // Handle regular auto sequence (gamepad1.a) - open blockers at same time as intake/chute
+            if (isAutoRunning && autoTimer.seconds() >= FLYWHEEL_SPINUP_TIME) {
                 leftBlockerToggle = true;
                 rightBlockerToggle = true;
             }
@@ -201,10 +201,10 @@ public class DECODETeleopCode extends LinearOpMode {
             // Handle left-first auto sequence (gamepad1.x)
             if (isLeftFirstAutoRunning) {
                 double elapsed = leftFirstAutoTimer.seconds();
-                if (elapsed > GATE_OPEN_TIME) {
+                if (elapsed >= FLYWHEEL_SPINUP_TIME) {
                     leftBlockerToggle = true;
                 }
-                if (elapsed > (GATE_OPEN_TIME + SEQUENTIAL_GATE_DELAY)) {
+                if (elapsed >= (FLYWHEEL_SPINUP_TIME + SEQUENTIAL_GATE_DELAY)) {
                     rightBlockerToggle = true;
                 }
             }
@@ -212,10 +212,10 @@ public class DECODETeleopCode extends LinearOpMode {
             // Handle right-first auto sequence (gamepad1.b)
             if (isRightFirstAutoRunning) {
                 double elapsed = rightFirstAutoTimer.seconds();
-                if (elapsed > GATE_OPEN_TIME) {
+                if (elapsed >= FLYWHEEL_SPINUP_TIME) {
                     rightBlockerToggle = true;
                 }
-                if (elapsed > (GATE_OPEN_TIME + SEQUENTIAL_GATE_DELAY)) {
+                if (elapsed >= (FLYWHEEL_SPINUP_TIME + SEQUENTIAL_GATE_DELAY)) {
                     leftBlockerToggle = true;
                 }
             }

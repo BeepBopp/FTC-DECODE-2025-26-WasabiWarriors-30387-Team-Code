@@ -69,6 +69,7 @@ public class DECODETeleopCode extends LinearOpMode {
     boolean isRegurging = false;
     boolean autoShutoffPending = false;
     boolean chuteOscillationState = false;
+    boolean artifactFeedingStarted = false; // NEW: Track if feeding has started
     
     ElapsedTime autoTimer = new ElapsedTime();
     ElapsedTime leftFirstAutoTimer = new ElapsedTime();
@@ -258,16 +259,25 @@ public class DECODETeleopCode extends LinearOpMode {
                 intake.setPower(-SPIT_POWER);
                 chute.setPower(CHUTE_STOP);
             }
-            // During artifact sequences, chute runs at full power
+            // NEW: During artifact sequences, start intake and chute simultaneously at FLYWHEEL_SPINUP_TIME
             else if ((isAutoRunning && autoTimer.seconds() >= FLYWHEEL_SPINUP_TIME) ||
                      (isLeftFirstAutoRunning && leftFirstAutoTimer.seconds() >= FLYWHEEL_SPINUP_TIME) ||
                      (isRightFirstAutoRunning && rightFirstAutoTimer.seconds() >= FLYWHEEL_SPINUP_TIME)) {
-                intake.setPower(FEEDING_POWER);
-                chute.setPower(FULL_POWER);
+                
+                // Start both intake and chute at the same time
+                if (!artifactFeedingStarted) {
+                    intake.setPower(FEEDING_POWER);
+                    chute.setPower(FULL_POWER);
+                    artifactFeedingStarted = true;
+                } else {
+                    intake.setPower(FEEDING_POWER);
+                    chute.setPower(FULL_POWER);
+                }
             } 
             else {
                 intake.setPower(STOP_POWER);
                 chute.setPower(CHUTE_STOP);
+                artifactFeedingStarted = false; // Reset flag when not in artifact sequence
             }
             lastLT = gamepad1.left_trigger > 0.1;
 
@@ -306,6 +316,7 @@ public class DECODETeleopCode extends LinearOpMode {
             hasRumbled = false;
             autoShutoffPending = false;
             chuteOscillationState = false;
+            artifactFeedingStarted = false; // Reset flag when starting new sequence
             autoTimer.reset();
             chuteTimer.reset();
         }
@@ -327,6 +338,7 @@ public class DECODETeleopCode extends LinearOpMode {
             hasRumbled = false;
             autoShutoffPending = false;
             chuteOscillationState = false;
+            artifactFeedingStarted = false; // Reset flag when starting new sequence
             leftFirstAutoTimer.reset();
             chuteTimer.reset();
         }
@@ -348,6 +360,7 @@ public class DECODETeleopCode extends LinearOpMode {
             hasRumbled = false;
             autoShutoffPending = false;
             chuteOscillationState = false;
+            artifactFeedingStarted = false; // Reset flag when starting new sequence
             rightFirstAutoTimer.reset();
             chuteTimer.reset();
         }

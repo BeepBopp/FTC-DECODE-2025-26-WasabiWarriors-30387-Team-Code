@@ -1,0 +1,424 @@
+package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.hardware.lynx.LynxModule;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.util.ElapsedTime;
+import java.util.List;
+
+@TeleOp(name="DECODE Teleop")
+public class DECODETeleopCode extends LinearOpMode {
+    
+    DcMotor leftFrontDrive, leftBackDrive, rightFrontDrive, rightBackDrive;
+    DcMotor intake;
+    DcMotorEx leftShooter, rightShooter;
+    Servo leftBlocker, rightBlocker;
+    CRServo chute;
+    List<LynxModule> allHubs;
+    
+    final double DRIVETRAIN_SPEED = 1.0;
+    final double CLOSE_SHOOTING_VELOCITY = 1000.0;
+    final double MEDIUM_SHOOTING_VELOCITY = 1300.0;
+    final double FAR_SHOOTING_VELOCITY = 1500.0;
+    final double CLOSE_DELAY = 0.8;
+    final double MEDIUM_DELAY = 1.0;
+    final double FAR_DELAY = 1.3;
+    final double FULL_POWER = 1.0;
+    final double STOP_POWER = 0.0;
+    final double FEEDING_POWER = 0.8;
+    final double SPIT_POWER = 0.6;
+    final double LEFT_BLOCKER_STOPPING_POSITION = 0.186;
+    final double LEFT_BLOCKER_RELEASE_POSITION = 0.605;
+    final double RIGHT_BLOCKER_STOPPING_POSITION = 0.82;
+    final double RIGHT_BLOCKER_RELEASE_POSITION = 0.372;
+    final double CHUTE_STOP = 0.0;
+    final double CHUTE_OSCILLATION_INTERVAL = 0.15; // Increased from 0.1 to 0.25 seconds
+    final double TANK_TURN_DURATION = 0.9;
+    final double FLYWHEEL_SPINUP_TIME = 2.0;
+    final double AUTO_SHOOTER_OFF_DELAY = 3.0;
+    final double GATE_OPEN_TIME = 0.9;
+    final double SEQUENTIAL_GATE_DELAY = 0.5;
+    
+    double targetVelocity = 0.0;
+    double currentProfileVelocity = CLOSE_SHOOTING_VELOCITY;
+    double currentSpinUpDelay = CLOSE_DELAY;
+    String currentModeName = "CLOSE";
+    
+    boolean lastA = false;
+    boolean lastX = false;
+    boolean lastB = false;
+    boolean lastY = false;
+    boolean lastRB = false;
+    boolean lastDpadUp = false;
+    boolean lastDTurn = false;
+    boolean lastLT = false;
+    
+    boolean hasRumbled = false;
+    boolean leftBlockerToggle = false;
+    boolean rightBlockerToggle = false;
+    boolean turningLeft = false;
+    boolean turningRight = false;
+    boolean isAutoRunning = false;
+    boolean isLeftFirstAutoRunning = false;
+    boolean isRightFirstAutoRunning = false;
+    boolean isRegurging = false;
+    boolean autoShutoffPending = false;
+    boolean chuteOscillationState = false;
+    
+    ElapsedTime autoTimer = new ElapsedTime();
+    ElapsedTime leftFirstAutoTimer = new ElapsedTime();
+    ElapsedTime rightFirstAutoTimer = new ElapsedTime();
+    ElapsedTime timerTankTurn = new ElapsedTime();
+    ElapsedTime regurgeTimer = new ElapsedTime();
+    ElapsedTime intakeDelayTimer = new ElapsedTime();
+    ElapsedTime chuteTimer = new ElapsedTime();
+    ElapsedTime shooterShutoffTimer = new ElapsedTime();
+
+    @Override
+    public void runOpMode() {
+        allHubs = hardwareMap.getAll(LynxModule.class);
+        for (LynxModule hub : allHubs) {
+            hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
+        }
+        
+        leftFrontDrive = hardwareMap.get(DcMotor.class, "leftFront");
+        rightFrontDrive = hardwareMap.get(DcMotor.class, "rightFront");
+        leftBackDrive = hardwareMap.get(DcMotor.class, "leftBack");
+        rightBackDrive = hardwareMap.get(DcMotor.class, "rightBack");
+        intake = hardwareMap.get(DcMotor.class, "intake");
+        leftShooter = hardwareMap.get(DcMotorEx.class, "leftShooter");
+        rightShooter = hardwareMap.get(DcMotorEx.class, "rightShooter");
+        leftBlocker = hardwareMap.get(Servo.class, "leftBlocker");
+        rightBlocker = hardwareMap.get(Servo.class, "rightBlocker");
+        chute = hardwareMap.get(CRServo.class, "chute");
+        
+        leftFrontDrive.setDirection(DcMotor.Direction.REVERSE);
+        leftBackDrive.setDirection(DcMotor.Direction.REVERSE);
+        rightShooter.setDirection(DcMotor.Direction.REVERSE);
+        chute.setDirection(CRServo.Direction.REVERSE);
+        
+        leftShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        PIDFCoefficients leftPidfCoefficients = new PIDFCoefficients(227, 0, 0, 12.915);
+        PIDFCoefficients rightPidfCoefficients = new PIDFCoefficients(220, 0, 0, 12.815);
+        leftShooter.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, leftPidfCoefficients);
+        rightShooter.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, rightPidfCoefficients);
+        
+        setBrakeOn();
+
+        waitForStart();
+
+        while (opModeIsActive()) {
+            for (LynxModule hub : allHubs) {
+                hub.clearBulkCache();
+            }
+            
+            double y = -gamepad2.left_stick_y;
+            double x = gamepad2.left_stick_x;
+            double rxRaw = gamepad2.right_stick_x * 0.75;
+
+
+            double driveMag = Math.min(1.0, Math.hypot(x, y));
+            double turnScale = 1.0 - 0.3 * driveMag;  
+            double rx = rxRaw * turnScale;
+
+            double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1.0);
+            double leftFrontPower  = (y + x + rx) / denominator;
+            double leftBackPower   = (y - x + rx) / denominator;
+            double rightFrontPower = (y - x - rx) / denominator;
+            double rightBackPower  = (y + x - rx) / denominator;
+
+            leftFrontDrive.setPower(leftFrontPower * DRIVETRAIN_SPEED);
+            leftBackDrive.setPower(leftBackPower * DRIVETRAIN_SPEED);
+            rightFrontDrive.setPower(rightFrontPower * DRIVETRAIN_SPEED);
+            rightBackDrive.setPower(rightBackPower * DRIVETRAIN_SPEED);
+            
+            if (gamepad2.x && !lastDTurn) {
+                turningLeft = true;
+                timerTankTurn.reset();
+            } else if (gamepad2.b && !lastDTurn) {
+                turningRight = true;
+                timerTankTurn.reset();
+            }
+            
+            updateTankTurnLeft();
+            updateTankTurnRight();
+            lastDTurn = gamepad2.x || gamepad2.b;
+            
+            if (gamepad1.dpad_up && !lastDpadUp) {
+                if (currentProfileVelocity == CLOSE_SHOOTING_VELOCITY) {
+                    currentProfileVelocity = MEDIUM_SHOOTING_VELOCITY;
+                    currentSpinUpDelay = MEDIUM_DELAY;
+                    currentModeName = "MEDIUM";
+                } else if (currentProfileVelocity == MEDIUM_SHOOTING_VELOCITY) {
+                    currentProfileVelocity = FAR_SHOOTING_VELOCITY;
+                    currentSpinUpDelay = FAR_DELAY;
+                    currentModeName = "FAR";
+                } else {
+                    currentProfileVelocity = CLOSE_SHOOTING_VELOCITY;
+                    currentSpinUpDelay = CLOSE_DELAY;
+                    currentModeName = "CLOSE";
+                }
+            }
+            lastDpadUp = gamepad1.dpad_up;
+
+            if (gamepad1.dpad_down) {
+                targetVelocity = 0;
+                hasRumbled = false;
+                autoShutoffPending = false;
+            }
+
+            bringArtifacts();
+            bringArtifactsLeftFirst();
+            bringArtifactsRightFirst();
+            regurge();
+            
+            // Auto-shutoff shooter after delay
+            if (autoShutoffPending && shooterShutoffTimer.seconds() >= AUTO_SHOOTER_OFF_DELAY) {
+                targetVelocity = 0;
+                hasRumbled = false;
+                autoShutoffPending = false;
+            }
+
+            if (gamepad1.y && !lastY) {
+                leftBlockerToggle = !leftBlockerToggle;
+                rightBlockerToggle = !rightBlockerToggle;
+            }
+            lastY = gamepad1.y;
+
+            // Handle regular auto sequence (gamepad1.a)
+            if (isAutoRunning && autoTimer.seconds() > GATE_OPEN_TIME) {
+                leftBlockerToggle = true;
+                rightBlockerToggle = true;
+            }
+
+            // Handle left-first auto sequence (gamepad1.x)
+            if (isLeftFirstAutoRunning) {
+                double elapsed = leftFirstAutoTimer.seconds();
+                if (elapsed > GATE_OPEN_TIME) {
+                    leftBlockerToggle = true;
+                }
+                if (elapsed > (GATE_OPEN_TIME + SEQUENTIAL_GATE_DELAY)) {
+                    rightBlockerToggle = true;
+                }
+            }
+
+            // Handle right-first auto sequence (gamepad1.b)
+            if (isRightFirstAutoRunning) {
+                double elapsed = rightFirstAutoTimer.seconds();
+                if (elapsed > GATE_OPEN_TIME) {
+                    rightBlockerToggle = true;
+                }
+                if (elapsed > (GATE_OPEN_TIME + SEQUENTIAL_GATE_DELAY)) {
+                    leftBlockerToggle = true;
+                }
+            }
+
+            if (gamepad1.left_trigger > 0.5) {
+                leftBlockerToggle = false;
+                rightBlockerToggle = false;
+            }
+            
+            leftBlocker.setPosition(leftBlockerToggle ? LEFT_BLOCKER_RELEASE_POSITION : LEFT_BLOCKER_STOPPING_POSITION);
+            rightBlocker.setPosition(rightBlockerToggle ? RIGHT_BLOCKER_RELEASE_POSITION : RIGHT_BLOCKER_STOPPING_POSITION);
+
+            // Detection for releasing the Left Trigger
+            if (lastLT && gamepad1.left_trigger <= 0.1) {
+                intakeDelayTimer.reset();
+            }
+
+            if (gamepad1.right_trigger > 0.1) {
+                intake.setPower(-SPIT_POWER);
+                chute.setPower(CHUTE_STOP);
+            } 
+            else if (gamepad1.left_trigger > 0.1) {
+                if (!lastLT) {
+                    chuteTimer.reset();
+                    chuteOscillationState = false;
+                }
+                intake.setPower(FULL_POWER);
+                // Oscillation with increased interval
+                if (chuteTimer.seconds() >= CHUTE_OSCILLATION_INTERVAL) {
+                    chuteOscillationState = !chuteOscillationState;
+                    chuteTimer.reset();
+                }
+                chute.setPower(chuteOscillationState ? FULL_POWER : -FULL_POWER);
+            } 
+            // 0.1s Delay Feature: Intake stays on, Chute stays stopped
+            else if (intakeDelayTimer.seconds() < 0.1) {
+                intake.setPower(FULL_POWER);
+                chute.setPower(CHUTE_STOP);
+            }
+            else if (isRegurging) {
+                intake.setPower(-SPIT_POWER);
+                chute.setPower(CHUTE_STOP);
+            }
+            // During artifact sequences, chute runs at full power
+            else if ((isAutoRunning && autoTimer.seconds() >= FLYWHEEL_SPINUP_TIME) ||
+                     (isLeftFirstAutoRunning && leftFirstAutoTimer.seconds() >= FLYWHEEL_SPINUP_TIME) ||
+                     (isRightFirstAutoRunning && rightFirstAutoTimer.seconds() >= FLYWHEEL_SPINUP_TIME)) {
+                intake.setPower(FEEDING_POWER);
+                chute.setPower(FULL_POWER);
+            } 
+            else {
+                intake.setPower(STOP_POWER);
+                chute.setPower(CHUTE_STOP);
+            }
+            lastLT = gamepad1.left_trigger > 0.1;
+
+            leftShooter.setVelocity(targetVelocity);
+            rightShooter.setVelocity(targetVelocity);
+            
+            double leftCurrentVelocity = leftShooter.getVelocity();
+            double rightCurrentVelocity = rightShooter.getVelocity();
+
+            boolean leftReady = Math.abs(leftCurrentVelocity - targetVelocity) < 50;
+            boolean rightReady = Math.abs(rightCurrentVelocity - targetVelocity) < 50;
+            
+            if (targetVelocity > 0 && !hasRumbled) {
+                if (leftReady && rightReady) { 
+                    gamepad1.rumble(250);
+                    hasRumbled = true;
+                }
+            }
+            
+            telemetry.addData("Selected Mode", currentModeName);
+            telemetry.addData("Selected Speed", currentProfileVelocity);
+            telemetry.addData("Left Vel", "%.2f", leftCurrentVelocity);
+            telemetry.addData("Right Vel", "%.2f", rightCurrentVelocity);
+            telemetry.addData("Ready", hasRumbled);
+            telemetry.addData("Auto Shutoff", autoShutoffPending ? String.format("%.1fs", AUTO_SHOOTER_OFF_DELAY - shooterShutoffTimer.seconds()) : "---");
+            telemetry.update();
+        }
+    }
+
+    private void bringArtifacts() {
+        if (gamepad1.a && !lastA) {
+            isAutoRunning = true;
+            leftBlockerToggle = false;
+            rightBlockerToggle = false;
+            targetVelocity = currentProfileVelocity;
+            hasRumbled = false;
+            autoShutoffPending = false;
+            chuteOscillationState = false;
+            autoTimer.reset();
+            chuteTimer.reset();
+        }
+        lastA = gamepad1.a;
+
+        if (isAutoRunning && autoTimer.seconds() >= (FLYWHEEL_SPINUP_TIME + 2.1)) {
+            isAutoRunning = false;
+            autoShutoffPending = true;
+            shooterShutoffTimer.reset();
+        }
+    }
+
+    private void bringArtifactsLeftFirst() {
+        if (gamepad1.x && !lastX) {
+            isLeftFirstAutoRunning = true;
+            leftBlockerToggle = false;
+            rightBlockerToggle = false;
+            targetVelocity = currentProfileVelocity;
+            hasRumbled = false;
+            autoShutoffPending = false;
+            chuteOscillationState = false;
+            leftFirstAutoTimer.reset();
+            chuteTimer.reset();
+        }
+        lastX = gamepad1.x;
+
+        if (isLeftFirstAutoRunning && leftFirstAutoTimer.seconds() >= (FLYWHEEL_SPINUP_TIME + 2.1)) {
+            isLeftFirstAutoRunning = false;
+            autoShutoffPending = true;
+            shooterShutoffTimer.reset();
+        }
+    }
+
+    private void bringArtifactsRightFirst() {
+        if (gamepad1.b && !lastB) {
+            isRightFirstAutoRunning = true;
+            leftBlockerToggle = false;
+            rightBlockerToggle = false;
+            targetVelocity = currentProfileVelocity;
+            hasRumbled = false;
+            autoShutoffPending = false;
+            chuteOscillationState = false;
+            rightFirstAutoTimer.reset();
+            chuteTimer.reset();
+        }
+        lastB = gamepad1.b;
+
+        if (isRightFirstAutoRunning && rightFirstAutoTimer.seconds() >= (FLYWHEEL_SPINUP_TIME + 2.1)) {
+            isRightFirstAutoRunning = false;
+            autoShutoffPending = true;
+            shooterShutoffTimer.reset();
+        }
+    }
+    
+    private void regurge() {
+        if (gamepad1.right_bumper && !lastRB) {
+            isRegurging = true;
+            regurgeTimer.reset();
+        }
+        lastRB = gamepad1.right_bumper;
+
+        if (isRegurging && regurgeTimer.seconds() >= 1.0) {
+            isRegurging = false;
+            leftBlockerToggle = false;
+            rightBlockerToggle = false;
+        }
+    }
+    
+    private void updateTankTurnLeft() {
+        if (!turningLeft) return;
+        
+        double t = timerTankTurn.seconds();
+        
+         if (t < TANK_TURN_DURATION) {
+            leftFrontDrive.setPower(-FULL_POWER);
+            leftBackDrive.setPower(-FULL_POWER);
+            rightFrontDrive.setPower(FULL_POWER);
+            rightBackDrive.setPower(FULL_POWER);
+        } else {
+            leftFrontDrive.setPower(STOP_POWER);
+            leftBackDrive.setPower(STOP_POWER);
+            rightFrontDrive.setPower(STOP_POWER);
+            rightBackDrive.setPower(STOP_POWER);
+        
+            turningLeft = false;
+         }
+    }
+
+    private void updateTankTurnRight() {
+        if (!turningRight) return;
+        
+        double t = timerTankTurn.seconds();
+        
+         if (t < TANK_TURN_DURATION) {
+            leftFrontDrive.setPower(FULL_POWER);
+            leftBackDrive.setPower(FULL_POWER);
+            rightFrontDrive.setPower(-FULL_POWER);
+            rightBackDrive.setPower(-FULL_POWER);
+         }
+         else {
+            leftFrontDrive.setPower(STOP_POWER);
+            leftBackDrive.setPower(STOP_POWER);
+            rightFrontDrive.setPower(STOP_POWER);
+            rightBackDrive.setPower(STOP_POWER);
+            turningRight = false;
+         }
+    }
+
+    
+    private void setBrakeOn() {
+        leftFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+    }
+}

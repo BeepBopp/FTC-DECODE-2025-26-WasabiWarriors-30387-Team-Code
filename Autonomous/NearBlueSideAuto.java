@@ -132,12 +132,12 @@ public class NearBlueSideAuto extends LinearOpMode {
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
                     timer = new ElapsedTime();
+                    intake.setPower(0.8);
+                    chute.setPower(1.0);
                     initialized = true;
                 }
 
-                if (timer.seconds() < 2.1) {
-                    intake.setPower(0.8);
-                    chute.setPower(1.0);
+                if (timer.seconds() < 2) {
                     return true;
                 } else {
                     intake.setPower(0);

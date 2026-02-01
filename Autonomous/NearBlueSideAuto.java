@@ -46,12 +46,17 @@ public class NewNearBlueSideAuto extends LinearOpMode {
 
         public class TurnShooterOn implements Action {
             private boolean initialized = false;
+            private double velocity;
+
+            public TurnShooterOn(double velocity) {
+                this.velocity = velocity;
+            }
 
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
-                    leftShooter.setVelocity(1100);
-                    rightShooter.setVelocity(1100);
+                    leftShooter.setVelocity(velocity);
+                    rightShooter.setVelocity(velocity);
                     intake.setPower(0.8);
                     chute.setPower(1.0);
                     initialized = true;
@@ -60,8 +65,8 @@ public class NewNearBlueSideAuto extends LinearOpMode {
             }
         }
 
-        public Action turnShooterOn() {
-            return new TurnShooterOn();
+        public Action turnShooterOn(double velocity) {
+            return new TurnShooterOn(velocity);
         }
 
         public class TurnShooterOff implements Action {
@@ -189,17 +194,37 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                 .lineToX(41.0)
                 .build();
         Action goToIntakeSecond = drive.actionBuilder(new Pose2d(41.0, 124.0, Math.toRadians(125)))
-                .strafeToLinearHeading(new Vector2d(36.5, 51.5), Math.toRadians(166))
+                .strafeToLinearHeading(new Vector2d(38.0, 51.5), Math.toRadians(166))
                 .build();
-        Action intakeSecond = drive.actionBuilder(new Pose2d(36.5, 51.5, Math.toRadians(166)))
+        Action intakeSecond = drive.actionBuilder(new Pose2d(38.0, 51.5, Math.toRadians(166)))
                 .lineToY(61.0)
                 .build();
-        Action goToShootSecond = drive.actionBuilder(new Pose2d(36.5, 61.0, Math.toRadians(166)))
-                .lineToY(58.0)
-                .strafeToLinearHeading(new Vector2d(56.0, 98.0), Math.toRadians(77.5))
+        Action goToShootSecond = drive.actionBuilder(new Pose2d(38.0, 61.0, Math.toRadians(166)))
+                .lineToY(56.0)
+                .strafeToLinearHeading(new Vector2d(56.0, 88.0), Math.toRadians(100))
                 .build();
-        //Action intakeThird = drive.actionBuilder(new Pose2d(56.0, 98.0, Math.toRadians(75)))
-                        //.build()
+        Action intakeThird = drive.actionBuilder(new Pose2d(46.0, 98.0, Math.toRadians(100)))
+                .strafeToLinearHeading(new Vector2d(6.0, 45.0), Math.toRadians(140))
+                .strafeToLinearHeading(new Vector2d(-7.0, 64.0), Math.toRadians(140))
+                .build();
+        Action goToShootThird = drive.actionBuilder(new Pose2d(-7.0, 64.0, Math.toRadians(140)))
+                .lineToY(56.0)
+                .strafeToLinearHeading(new Vector2d(61.0, 50.0), Math.toRadians(103))
+                .build();
+        Action intakeForth = drive.actionBuilder(new Pose2d(61.0, 50.0, Math.toRadians(103)))
+                .strafeToLinearHeading(new Vector2d(6.0, 45.0), Math.toRadians(140))
+                .strafeToLinearHeading(new Vector2d(-5.0, 64.0), Math.toRadians(140))
+                .build();
+        Action goToShootForth = drive.actionBuilder(new Pose2d(-5.0, 64.0, Math.toRadians(120)))
+                .lineToY(56.0)
+                .strafeToLinearHeading(new Vector2d(33.0, 98.0), Math.toRadians(100))
+                .build();
+        Action goToIntakeFifth = drive.actionBuilder(new Pose2d(33.0, 98.0, Math.toRadians(100)))
+                .strafeToLinearHeading(new Vector2d(37.0, 71.5), Math.toRadians(162))
+                .build();
+        Action intakeFifth = drive.actionBuilder(new Pose2d(37.0, 71.5, Math.toRadians(162)))
+                .lineToY(83.0)
+                .build();
 
         waitForStart();
 
@@ -207,9 +232,9 @@ public class NewNearBlueSideAuto extends LinearOpMode {
 
         Actions.runBlocking(
                 new SequentialAction(
-                        shoot.turnShooterOn(),
+                        shoot.turnShooterOn(1100),
                         goToShootFirst,
-                        new SleepAction(0.3),
+                        new SleepAction(0.2),
                         intake.bringArtifacts(),
                         shoot.turnShooterOff(),
                         goToIntakeSecond,
@@ -217,10 +242,27 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                                 intake.turnIntakeOn(0.8),
                                 intakeSecond
                         ),
-                        shoot.turnShooterOn(),
+                        shoot.turnShooterOn(1100),
                         goToShootSecond,
                         intake.bringArtifacts(),
+                        shoot.turnShooterOff(),
+                        intakeThird,
+                        intake.turnIntakeOn(1.5),
+                        shoot.turnShooterOn(1200),
+                        goToShootThird,
+                        intake.bringArtifacts(),
                         shoot.turnShooterOff()
+//                        intakeForth,
+//                        intake.turnIntakeOn(2.0),
+//                        shoot.turnShooterOn(),
+//                        goToShootForth,
+//                        intake.bringArtifacts(),
+//                        shoot.turnShooterOff(),
+//                        goToIntakeFifth,
+//                        new ParallelAction(
+//                                intake.turnIntakeOn(0.8),
+//                                intakeFifth
+//                        )
                 )
         );
     }

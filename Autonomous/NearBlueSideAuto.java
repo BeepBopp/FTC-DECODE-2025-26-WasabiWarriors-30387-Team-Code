@@ -2,42 +2,43 @@ package org.firstinspires.ftc.teamcode;
 
 import androidx.annotation.NonNull;
 
-// RR-specific imports
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.acmerobotics.roadrunner.Action;
-
-// Non-RR imports
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.SequentialAction;
+import com.acmerobotics.roadrunner.ParallelAction;
 import com.acmerobotics.roadrunner.SleepAction;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.acmerobotics.roadrunner.ftc.Actions;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
-import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 @Config
-@Autonomous(name = "Near Blue Side Auto", group = "Autonomous")
-public class NearBlueSideAuto extends LinearOpMode {
+@Autonomous(name = "New Near Blue Side Auto", group = "Autonomous")
+public class NewNearBlueSideAuto extends LinearOpMode {
     public class Shoot {
         private DcMotorEx leftShooter, rightShooter;
+        private DcMotor intake, chute;
 
         public Shoot(HardwareMap hardwareMap) {
             leftShooter = hardwareMap.get(DcMotorEx.class, "leftShooter");
             rightShooter = hardwareMap.get(DcMotorEx.class, "rightShooter");
+            intake = hardwareMap.get(DcMotor.class, "intake");
+            chute = hardwareMap.get(DcMotor.class, "chute");
 
             rightShooter.setDirection(DcMotor.Direction.REVERSE);
+            chute.setDirection(DcMotor.Direction.REVERSE);
             leftShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
             rightShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-            PIDFCoefficients leftPidfCoefficients = new PIDFCoefficients(227, 0, 0, 12.915);
+            PIDFCoefficients leftPidfCoefficients = new PIDFCoefficients(220, 0, 0, 12.915);
             PIDFCoefficients rightPidfCoefficients = new PIDFCoefficients(220, 0, 0, 12.815);
             leftShooter.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, leftPidfCoefficients);
             rightShooter.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, rightPidfCoefficients);
@@ -51,6 +52,8 @@ public class NearBlueSideAuto extends LinearOpMode {
                 if (!initialized) {
                     leftShooter.setVelocity(1100);
                     rightShooter.setVelocity(1100);
+                    intake.setPower(0.8);
+                    chute.setPower(1.0);
                     initialized = true;
                 }
                 return false;
@@ -69,6 +72,8 @@ public class NearBlueSideAuto extends LinearOpMode {
                 if (!initialized) {
                     leftShooter.setVelocity(0);
                     rightShooter.setVelocity(0);
+                    intake.setPower(0);
+                    chute.setPower(0);
                     initialized = true;
                 }
                 return false;
@@ -81,30 +86,50 @@ public class NearBlueSideAuto extends LinearOpMode {
     }
 
     public class Intake {
-        private DcMotor intake;
-        private CRServo chute;
+        private DcMotor intake, chute;
+        private Servo leftBlocker, rightBlocker;
 
         public Intake(HardwareMap hardwareMap) {
             intake = hardwareMap.get(DcMotor.class, "intake");
-            chute = hardwareMap.get(CRServo.class, "chute");
-            chute.setDirection(CRServo.Direction.REVERSE);
+            chute = hardwareMap.get(DcMotor.class, "chute");
+            leftBlocker = hardwareMap.get(Servo.class, "leftBlocker");
+            rightBlocker = hardwareMap.get(Servo.class, "rightBlocker");
+
+            chute.setDirection(DcMotor.Direction.REVERSE);
         }
 
         public class TurnIntakeOn implements Action {
             private boolean initialized = false;
+            private ElapsedTime timer;
+            private ElapsedTime chuteTimer;
+            private boolean chuteOscillationState = false;
+            private double duration;
+
+            public TurnIntakeOn(double duration) {
+                this.duration = duration;
+            }
 
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
                     intake.setPower(1.0);
+                    timer = new ElapsedTime();
+                    chuteTimer = new ElapsedTime();
                     initialized = true;
                 }
-                return false;
+
+                if (chuteTimer.seconds() >= 0.1) {
+                    chuteOscillationState = !chuteOscillationState;
+                    chuteTimer.reset();
+                }
+                chute.setPower(chuteOscillationState ? 1.0 : -1.0);
+
+                return timer.seconds() < duration;
             }
         }
 
-        public Action turnIntakeOn() {
-            return new TurnIntakeOn();
+        public Action turnIntakeOn(double duration) {
+            return new TurnIntakeOn(duration);
         }
 
         public class TurnIntakeOff implements Action {
@@ -114,6 +139,7 @@ public class NearBlueSideAuto extends LinearOpMode {
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
                     intake.setPower(0.0);
+                    chute.setPower(0.0);
                     initialized = true;
                 }
                 return false;
@@ -132,16 +158,16 @@ public class NearBlueSideAuto extends LinearOpMode {
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
                     timer = new ElapsedTime();
-                    intake.setPower(0.8);
-                    chute.setPower(1.0);
+                    leftBlocker.setPosition(0.605);
+                    rightBlocker.setPosition(0.372);
                     initialized = true;
                 }
 
-                if (timer.seconds() < 2) {
+                if (timer.seconds() < 0.7) {
                     return true;
                 } else {
-                    intake.setPower(0);
-                    chute.setPower(0);
+                    leftBlocker.setPosition(0.186);
+                    rightBlocker.setPosition(0.82);
                     return false;
                 }
             }
@@ -163,37 +189,17 @@ public class NearBlueSideAuto extends LinearOpMode {
                 .lineToX(41.0)
                 .build();
         Action goToIntakeSecond = drive.actionBuilder(new Pose2d(41.0, 124.0, Math.toRadians(125)))
-                .strafeToLinearHeading(new Vector2d(37.0, 71.5), Math.toRadians(162))
+                .strafeToLinearHeading(new Vector2d(36.5, 51.5), Math.toRadians(166))
                 .build();
-        Action intakeSecond = drive.actionBuilder(new Pose2d(37.0, 71.5, Math.toRadians(162)))
-                .lineToY(79.0)
-                .strafeTo(new Vector2d(10.0, 70.0))
-                .strafeTo(new Vector2d(2.5, 70.0))
+        Action intakeSecond = drive.actionBuilder(new Pose2d(36.5, 51.5, Math.toRadians(166)))
+                .lineToY(61.0)
                 .build();
-        Action goToShootSecond = drive.actionBuilder(new Pose2d(2.5, 70.0, Math.toRadians(162)))
-                .strafeToLinearHeading(new Vector2d(42.0, 88.0), Math.toRadians(124))
+        Action goToShootSecond = drive.actionBuilder(new Pose2d(36.5, 61.0, Math.toRadians(166)))
+                .lineToY(58.0)
+                .strafeToLinearHeading(new Vector2d(56.0, 98.0), Math.toRadians(77.5))
                 .build();
-        Action goToIntakeThird = drive.actionBuilder(new Pose2d(42.0, 88.0, Math.toRadians(124)))
-                .strafeToLinearHeading(new Vector2d(32.0, 42.0), Math.toRadians(163))
-                .build();
-        Action intakeThird = drive.actionBuilder(new Pose2d(32.0, 42.0, Math.toRadians(163)))
-                .lineToY(51.0)
-                .build();
-        Action goToShootThird = drive.actionBuilder(new Pose2d(32.0, 51.0, Math.toRadians(163)))
-                .strafeToLinearHeading(new Vector2d(51.0, 80.0), Math.toRadians(110))
-                .build();
-        Action goToIntakeForth = drive.actionBuilder(new Pose2d(51.0, 80.0, Math.toRadians(110)))
-                .strafeToLinearHeading(new Vector2d(29.5, 14.0), Math.toRadians(163))
-                .build();
-        Action intakeForth = drive.actionBuilder(new Pose2d(29.5, 14.0, Math.toRadians(163)))
-                .lineToY(23.0)
-                .build();
-        Action goToShootForth = drive.actionBuilder(new Pose2d(29.5, 23.0, Math.toRadians(163)))
-                .strafeToLinearHeading(new Vector2d(52.0, 80.0), Math.toRadians(114))
-                .build();
-        Action goToFinalPosition = drive.actionBuilder(new Pose2d(52.0, 80.0, Math.toRadians(109.5)))
-                .strafeToLinearHeading(new Vector2d(32.0, 62.0), Math.toRadians(163))
-                .build();
+        //Action intakeThird = drive.actionBuilder(new Pose2d(56.0, 98.0, Math.toRadians(75)))
+                        //.build()
 
         waitForStart();
 
@@ -201,40 +207,20 @@ public class NearBlueSideAuto extends LinearOpMode {
 
         Actions.runBlocking(
                 new SequentialAction(
-                        // shoot first 3 balls
                         shoot.turnShooterOn(),
                         goToShootFirst,
+                        new SleepAction(0.3),
                         intake.bringArtifacts(),
                         shoot.turnShooterOff(),
-                        // pick up second set of balls
                         goToIntakeSecond,
-                        intake.turnIntakeOn(),
-                        intakeSecond,
-                        new SleepAction(0.5),
-                        // shoot third set of balls
+                        new ParallelAction(
+                                intake.turnIntakeOn(0.8),
+                                intakeSecond
+                        ),
                         shoot.turnShooterOn(),
                         goToShootSecond,
-                        intake.turnIntakeOff(),
                         intake.bringArtifacts(),
-                        // pick up third set of balls
-                        goToIntakeThird,
-                        intake.turnIntakeOn(),
-                        intakeThird,
-                        // shoot second set of balls
-                        shoot.turnShooterOn(),
-                        goToShootThird,
-                        intake.turnIntakeOff(),
-                        intake.bringArtifacts(),
-                        // pick up forth set of balls
-                        goToIntakeForth,
-                        intake.turnIntakeOn(),
-                        intakeForth,
-                        // shoot forth set of balls
-                        shoot.turnShooterOn(),
-                        goToShootForth,
-                        intake.turnIntakeOff(),
-                        intake.bringArtifacts(),
-                        goToFinalPosition
+                        shoot.turnShooterOff()
                 )
         );
     }

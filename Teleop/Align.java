@@ -1,4 +1,26 @@
-public class AlignToAprilTag implements Action {
+public class Align {
+    private Limelight3A limelight;
+    private IMU imu;
+    private DcMotor leftFrontDrive, leftBackDrive, rightFrontDrive, rightBackDrive;
+    
+    private final double LIMELIGHT_TURN_GAIN = 0.05;
+    private final double LIMELIGHT_TOLERANCE = 1.5;
+    private final double LIMELIGHT_TIMEOUT = 5.0;
+    private final double LIMELIGHT_SPEED = 1.0;
+
+    public Align(HardwareMap hardwareMap) {
+        limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        imu = hardwareMap.get(IMU.class, "imu");
+        leftFrontDrive = hardwareMap.get(DcMotor.class, "leftFront");
+        rightFrontDrive = hardwareMap.get(DcMotor.class, "rightFront");
+        leftBackDrive = hardwareMap.get(DcMotor.class, "leftBack");
+        rightBackDrive = hardwareMap.get(DcMotor.class, "rightBack");
+        
+        limelight.pipelineSwitch(0);
+        limelight.start();
+    }
+
+    public class AlignToAprilTag implements Action {
         private boolean initialized = false;
         private ElapsedTime alignTimer;
         private boolean aligned = false;
@@ -10,7 +32,6 @@ public class AlignToAprilTag implements Action {
                 initialized = true;
             }
 
-            // Update robot orientation for Limelight
             YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
             double botHeading = orientation.getYaw(AngleUnit.RADIANS);
             limelight.updateRobotOrientation(Math.toDegrees(botHeading));
@@ -18,13 +39,10 @@ public class AlignToAprilTag implements Action {
             LLResult limelightResult = limelight.getLatestResult();
 
             if (limelightResult != null && limelightResult.isValid()) {
-                // Get horizontal offset (tx)
                 double tx = limelightResult.getTx();
                 double turn = tx * LIMELIGHT_TURN_GAIN;
 
-                // Check if aligned
                 if (Math.abs(tx) < LIMELIGHT_TOLERANCE) {
-                    // Stop all motors
                     leftFrontDrive.setPower(0);
                     leftBackDrive.setPower(0);
                     rightFrontDrive.setPower(0);
@@ -32,10 +50,9 @@ public class AlignToAprilTag implements Action {
                     
                     packet.put("Limelight Status", "ALIGNED");
                     packet.put("TX Offset", tx);
-                    return false; // Action complete
+                    return false;
                 }
 
-                // Apply rotation to face the tag
                 double leftFrontPower = turn * LIMELIGHT_SPEED;
                 double leftBackPower = turn * LIMELIGHT_SPEED;
                 double rightFrontPower = -turn * LIMELIGHT_SPEED;
@@ -50,22 +67,20 @@ public class AlignToAprilTag implements Action {
                 packet.put("TX Offset", tx);
                 packet.put("Turn Power", turn);
                 
-                return true; // Continue action
+                return true;
             } else {
-                // Tag not detected - stop and wait
                 leftFrontDrive.setPower(0);
                 leftBackDrive.setPower(0);
                 rightFrontDrive.setPower(0);
                 rightBackDrive.setPower(0);
 
-                // Check for timeout
                 if (alignTimer.seconds() > LIMELIGHT_TIMEOUT) {
                     packet.put("Limelight Status", "TIMEOUT - Tag Lost");
-                    return false; // Action failed/complete
+                    return false;
                 }
 
                 packet.put("Limelight Status", "SEARCHING");
-                return true; // Keep trying
+                return true;
             }
         }
     }
@@ -73,3 +88,4 @@ public class AlignToAprilTag implements Action {
     public Action alignToAprilTag() {
         return new AlignToAprilTag();
     }
+}

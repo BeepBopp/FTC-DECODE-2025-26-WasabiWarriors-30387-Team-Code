@@ -36,7 +36,6 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
     final double LIMELIGHT_TARGET_X = 0.0;
     final double LIMELIGHT_TARGET_Y = 0.0;
     final double LIMELIGHT_TOLERANCE = 1.0;
-    final double LIMELIGHT_TIMEOUT = 5.0; 
     final double CLOSE_SHOOTING_VELOCITY = 1000.0;
     final double MEDIUM_SHOOTING_VELOCITY = 1200.0;
     final double LEFT_FAR_SHOOTING_VELOCITY = 1550.0;
@@ -68,6 +67,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
     boolean lastDpadRight = false;
     boolean lastLT = false;
     boolean lastDriverA = false;
+    boolean lastDriverY = false;
     
     boolean hasRumbled = false;
     boolean leftBlockerToggle = false;
@@ -149,6 +149,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
             
             double y, x, rx;
             
+            // Start Limelight alignment with gamepad2.a
             if (gamepad2.a && !lastDriverA) {
                 isLimelightAligning = true;
                 limelightAlignmentComplete = false;
@@ -157,12 +158,35 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
             }
             lastDriverA = gamepad2.a;
             
+            // Cancel Limelight alignment with gamepad2.y
+            if (gamepad2.y && !lastDriverY) {
+                isLimelightAligning = false;
+                limelightAlignmentComplete = false;
+                limelightHasRumbled = false;
+            }
+            lastDriverY = gamepad2.y;
+            
             // Limelight Auto-Align Mode
             if (isLimelightAligning) {
                 if (limelightResult != null && limelightResult.isValid()) {
-                    // Vision Rotation ONLY (Face the Tag) - no driving or strafing
-                    double tx = limelightResult.getTx();
-                    double turn = tx * LIMELIGHT_TURN_GAIN;
+                    // Check if we're tracking the correct AprilTag (ID 20 or 24)
+                    boolean isCorrectTag = false;
+                    if (limelightResult.getFiducialResults() != null && !limelightResult.getFiducialResults().isEmpty()) {
+                        int tagId = (int) limelightResult.getFiducialResults().get(0).getFiducialId();
+                        isCorrectTag = (tagId == 20 || tagId == 24);
+                    }
+                    
+                    if (!isCorrectTag) {
+                        // Wrong tag detected - hold position and keep searching
+                        leftFrontDrive.setPower(0);
+                        leftBackDrive.setPower(0);
+                        rightFrontDrive.setPower(0);
+                        rightBackDrive.setPower(0);
+                    } else {
+                        // Correct tag found - proceed with alignment
+                        // Vision Rotation ONLY (Face the Tag) - no driving or strafing
+                        double tx = limelightResult.getTx();
+                        double turn = tx * LIMELIGHT_TURN_GAIN;
                     
                     // Check if aligned
                     if (Math.abs(tx) < LIMELIGHT_TOLERANCE && !limelightHasRumbled) {
@@ -194,6 +218,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
                     leftBackDrive.setPower(leftBackPower);
                     rightFrontDrive.setPower(rightFrontPower);
                     rightBackDrive.setPower(rightBackPower);
+                    }
                     
                 } else {
                     // Lost the tag during alignment - hold position but keep trying
@@ -201,12 +226,6 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
                     leftBackDrive.setPower(0);
                     rightFrontDrive.setPower(0);
                     rightBackDrive.setPower(0);
-                    
-                    // Optional: Add timeout to cancel alignment if tag lost for too long
-                    if (limelightAlignTimer.seconds() > LIMELIGHT_TIMEOUT) {
-                        isLimelightAligning = false;
-                        telemetry.addData("Alignment", "TIMEOUT - Tag lost");
-                    }
                 }
             } else {
                 // Normal Manual Control (gamepad2)
@@ -378,6 +397,11 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
             telemetry.addData("Limelight", isLimelightAligning ? "ALIGNING" : "MANUAL");
             if (limelightResult != null && limelightResult.isValid()) {
                 telemetry.addData("Target Offset (tx)", "%.2f", limelightResult.getTx());
+                if (limelightResult.getFiducialResults() != null && !limelightResult.getFiducialResults().isEmpty()) {
+                    int detectedTagId = (int) limelightResult.getFiducialResults().get(0).getFiducialId();
+                    telemetry.addData("AprilTag ID", detectedTagId);
+                    telemetry.addData("Tracking", (detectedTagId == 20 || detectedTagId == 24) ? "YES" : "WRONG TAG");
+                }
             } else {
                 telemetry.addData("AprilTag", "Not Detected");
             }

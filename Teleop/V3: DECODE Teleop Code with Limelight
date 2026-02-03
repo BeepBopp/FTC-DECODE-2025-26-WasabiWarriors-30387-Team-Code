@@ -35,7 +35,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
     final double LIMELIGHT_TURN_GAIN = 0.05;
     final double LIMELIGHT_TARGET_X = 0.0;
     final double LIMELIGHT_TARGET_Y = 0.0;
-    final double LIMELIGHT_TOLERANCE = 1.5;
+    final double LIMELIGHT_TOLERANCE = 1.0;
     final double LIMELIGHT_TIMEOUT = 5.0; // Timeout if tag lost for 5 seconds
     final double CLOSE_SHOOTING_VELOCITY = 1000.0;
     final double MEDIUM_SHOOTING_VELOCITY = 1200.0;
@@ -67,7 +67,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
     boolean lastDpadLeft = false;
     boolean lastDpadRight = false;
     boolean lastLT = false;
-    boolean lastShare = false;
+    boolean lastDriverA = false;
     
     boolean hasRumbled = false;
     boolean leftBlockerToggle = false;
@@ -149,14 +149,13 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
             
             double y, x, rx;
             
-            // Check for Limelight auto-align trigger (gamepad1.share) - starts alignment
-            if (gamepad1.share && !lastShare) {
+            if (gamepad2.a && !lastDriverA) {
                 isLimelightAligning = true;
                 limelightAlignmentComplete = false;
                 limelightHasRumbled = false;
                 limelightAlignTimer.reset();
             }
-            lastShare = gamepad1.share;
+            lastDriverA = gamepad2.a;
             
             // Limelight Auto-Align Mode
             if (isLimelightAligning) {
@@ -470,3 +469,4 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
         rightBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 }
+

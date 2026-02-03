@@ -250,7 +250,7 @@ public class NewNearBlueSideAuto extends LinearOpMode {
 
         Actions.runBlocking(
                 new SequentialAction(
-                        shoot.turnShooterOn(162.5),
+                        shoot.turnShooterOn(1062.5),
                         goToShootFirst,
                         new SleepAction(0.2),
                         intake.bringArtifacts(),

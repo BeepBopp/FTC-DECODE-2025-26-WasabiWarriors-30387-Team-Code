@@ -36,11 +36,11 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
     final double LIMELIGHT_TARGET_X = 0.0;
     final double LIMELIGHT_TARGET_Y = 0.0;
     final double LIMELIGHT_TOLERANCE = 1.0;
-    final double LIMELIGHT_TIMEOUT = 5.0; // Timeout if tag lost for 5 seconds
+    final double LIMELIGHT_TIMEOUT = 5.0; 
     final double CLOSE_SHOOTING_VELOCITY = 1000.0;
     final double MEDIUM_SHOOTING_VELOCITY = 1200.0;
-    final double LEFT_FAR_SHOOTING_VELOCITY = 1500.0;
-    final double RIGHT_FAR_SHOOTING_VELOCITY = 1400.0;
+    final double LEFT_FAR_SHOOTING_VELOCITY = 1550.0;
+    final double RIGHT_FAR_SHOOTING_VELOCITY = 1450.0;
     final double FULL_POWER = 1.0;
     final double STOP_POWER = 0.0;
     final double FEEDING_POWER = 0.8;
@@ -50,7 +50,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
     final double RIGHT_BLOCKER_STOPPING_POSITION = 0.82;
     final double RIGHT_BLOCKER_RELEASE_POSITION = 0.372;
     final double CHUTE_STOP = 0.0;
-    final double CHUTE_OSCILLATION_INTERVAL = 0.15; // Increased from 0.1 to 0.25 seconds
+    final double CHUTE_OSCILLATION_INTERVAL = 0.15; 
     final double SEQUENTIAL_GATE_DELAY = 0.5;
     
     double leftTargetVelocity = 0.0;
@@ -469,4 +469,3 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
         rightBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 }
-

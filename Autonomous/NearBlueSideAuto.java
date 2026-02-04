@@ -233,10 +233,7 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                 .lineToY(24.0)
                 .build();
         Action goToShootFifth = drive.actionBuilder(new Pose2d(29.5, 24.0, Math.toRadians(170)))
-                .strafeToLinearHeading(new Vector2d(130.0, 80.0), Math.toRadians(22))
-                .build();
-        Action intakeSixth = drive.actionBuilder(new Pose2d(130.0, 80.0, Math.toRadians(170)))
-                .strafeToLinearHeading(new Vector2d(25.0, 10.0), Math.toRadians(215))
+                .strafeToLinearHeading(new Vector2d(130.0, 80.0), Math.toRadians(20))
                 .build();
 
         waitForStart();
@@ -283,11 +280,7 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                         shoot.turnShooterOn(1150),
                         goToShootFifth,
                         intake.bringArtifacts(),
-                        shoot.turnShooterOff(),
-                        new ParallelAction(
-                                intake.turnIntakeOn(2.5),
-                                intakeSixth
-                        )
+                        shoot.turnShooterOff()
                 )
         );
     }

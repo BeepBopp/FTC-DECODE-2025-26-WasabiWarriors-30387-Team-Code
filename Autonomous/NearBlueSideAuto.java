@@ -171,7 +171,7 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                     initialized = true;
                 }
 
-                if (timer.seconds() < 0.8) {
+                if (timer.seconds() < 0.9) {
                     return true;
                 } else {
                     leftBlocker.setPosition(0.51);
@@ -197,51 +197,46 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                 .lineToX(41.0)
                 .build();
         Action goToIntakeSecond = drive.actionBuilder(new Pose2d(41.0, 124.0, Math.toRadians(125)))
-                .strafeToLinearHeading(new Vector2d(38.0, 51.5), Math.toRadians(166))
+                .strafeToLinearHeading(new Vector2d(38.0, 51.0), Math.toRadians(166))
                 .build();
-        Action intakeSecond = drive.actionBuilder(new Pose2d(38.0, 51.5, Math.toRadians(166)))
+        Action intakeSecond = drive.actionBuilder(new Pose2d(38.0, 51.0, Math.toRadians(166)))
                 .lineToY(61.0)
                 .build();
         Action goToShootSecond = drive.actionBuilder(new Pose2d(38.0, 61.0, Math.toRadians(166)))
                 .lineToY(58.0)
                 .strafeToLinearHeading(new Vector2d(58.0, 88.0), Math.toRadians(82))
                 .build();
-        Action intakeThird = drive.actionBuilder(new Pose2d(46.0, 98.0, Math.toRadians(82)))
+        Action goToIntakeThird = drive.actionBuilder(new Pose2d(58.0, 88.0, Math.toRadians(82)))
+                .strafeToLinearHeading(new Vector2d(44.0, 78.0), Math.toRadians(140))
+                .build();
+        Action intakeThird = drive.actionBuilder(new Pose2d(44.0, 78.0, Math.toRadians(166)))
+                .lineToY(86.0)
+                .waitSeconds(0.2)
+                .lineToY(84.0)
+                .strafeTo(new Vector2d(0.0, 76.0))
+                .build();
+        Action goToShootThird = drive.actionBuilder(new Pose2d(0.0, 76.0, Math.toRadians(162)))
+                .strafeToLinearHeading(new Vector2d(43.0, 76.0), Math.toRadians(104))
+                .build();
+        Action intakeFourth = drive.actionBuilder(new Pose2d(43.0, 76.0, Math.toRadians(104)))
                 .strafeToLinearHeading(new Vector2d(6.0, 48.0), Math.toRadians(140))
                 .strafeToLinearHeading(new Vector2d(-2.0, 60.0), Math.toRadians(140))
                 .build();
-        Action goToShootThird = drive.actionBuilder(new Pose2d(-2.0, 60.0, Math.toRadians(140)))
+        Action goToShootFourth = drive.actionBuilder(new Pose2d(-2.0, 60.0, Math.toRadians(140)))
                 .lineToY(54.0)
-                .strafeToLinearHeading(new Vector2d(49.0, 67.0), Math.toRadians(98))
+                .strafeToLinearHeading(new Vector2d(46.5, 67.0), Math.toRadians(103))
                 .build();
-        Action intakeForth = drive.actionBuilder(new Pose2d(49.0, 67.0, Math.toRadians(98)))
-                .strafeToLinearHeading(new Vector2d(6.0, 45.0), Math.toRadians(140))
-                .strafeToLinearHeading(new Vector2d(-2.0, 60.0), Math.toRadians(140))
+        Action goToIntakeFifth = drive.actionBuilder(new Pose2d(46.5, 67.0, Math.toRadians(103)))
+                .strafeToLinearHeading(new Vector2d(29.5, 17.0), Math.toRadians(170))
                 .build();
-        Action goToShootForth = drive.actionBuilder(new Pose2d(-2.0, 60.0, Math.toRadians(140)))
-                .lineToY(54.0)
-                .strafeToLinearHeading(new Vector2d(50.0, 67.0), Math.toRadians(100))
+        Action intakeFifth = drive.actionBuilder(new Pose2d(29.5, 17.0, Math.toRadians(170)))
+                .lineToY(24.0)
                 .build();
-        Action goToIntakeFifth = drive.actionBuilder(new Pose2d(50.0, 67.0, Math.toRadians(100)))
-                .strafeToLinearHeading(new Vector2d(54.0, 71.5), Math.toRadians(163))
+        Action goToShootFifth = drive.actionBuilder(new Pose2d(29.5, 24.0, Math.toRadians(170)))
+                .strafeToLinearHeading(new Vector2d(130.0, 80.0), Math.toRadians(22))
                 .build();
-        Action intakeFifth = drive.actionBuilder(new Pose2d(54.0, 71.5, Math.toRadians(163)))
-                .lineToY(84.0)
-                .build();
-        Action goToShootFifth = drive.actionBuilder(new Pose2d(54.0, 84.0, Math.toRadians(162)))
-                .strafeToLinearHeading(new Vector2d(70.0, 67.0), Math.toRadians(62))
-                .build();
-        Action goToIntakeSixth = drive.actionBuilder(new Pose2d(70.0, 67.0, Math.toRadians(62)))
-                .strafeToLinearHeading(new Vector2d(29.5, 14.0), Math.toRadians(175))
-                .build();
-        Action intakeSixth = drive.actionBuilder(new Pose2d(29.5, 14.0, Math.toRadians(175)))
-                .lineToY(19.0)
-                .build();
-        Action goToShootSixth = drive.actionBuilder(new Pose2d(29.5, 19.0, Math.toRadians(175)))
-                .strafeToLinearHeading(new Vector2d(50.0, 80.0), Math.toRadians(80))
-                .build();
-        Action goToFinalPosition = drive.actionBuilder(new Pose2d(70.0, 80.0, Math.toRadians(80)))
-                .strafeToLinearHeading(new Vector2d(32.0, 62.0), Math.toRadians(163))
+        Action intakeSixth = drive.actionBuilder(new Pose2d(130.0, 80.0, Math.toRadians(170)))
+                .strafeToLinearHeading(new Vector2d(25.0, 10.0), Math.toRadians(215))
                 .build();
 
         waitForStart();
@@ -250,51 +245,49 @@ public class NewNearBlueSideAuto extends LinearOpMode {
 
         Actions.runBlocking(
                 new SequentialAction(
-                        shoot.turnShooterOn(1062.5),
+                        shoot.turnShooterOn(1075),
                         goToShootFirst,
                         new SleepAction(0.2),
                         intake.bringArtifacts(),
                         shoot.turnShooterOff(),
                         goToIntakeSecond,
                         new ParallelAction(
-                                intake.turnIntakeOn(0.8),
+                                intake.turnIntakeOn(1.0),
                                 intakeSecond
                         ),
                         shoot.turnShooterOn(1125),
                         goToShootSecond,
                         intake.bringArtifacts(),
                         shoot.turnShooterOff(),
-                        intakeThird,
-                        intake.turnIntakeOn(2.0),
-                        shoot.turnShooterOn(1150),
+                        goToIntakeThird,
+                        new ParallelAction(
+                                intake.turnIntakeOn(1.5),
+                                intakeThird
+                        ),
+                        new SleepAction(0.5),
+                        shoot.turnShooterOn(1125),
                         goToShootThird,
                         intake.bringArtifacts(),
                         shoot.turnShooterOff(),
-                        intakeForth,
-                        intake.turnIntakeOn(2.5),
-                        shoot.turnShooterOn(1200),
-                        goToShootForth,
+                        intakeFourth,
+                        intake.turnIntakeOn(2.0),
+                        shoot.turnShooterOn(1175),
+                        goToShootFourth,
                         intake.bringArtifacts(),
                         shoot.turnShooterOff(),
                         goToIntakeFifth,
                         new ParallelAction(
-                                intake.turnIntakeOn(1.2),
+                                intake.turnIntakeOn(1.0),
                                 intakeFifth
                         ),
                         shoot.turnShooterOn(1150),
                         goToShootFifth,
                         intake.bringArtifacts(),
                         shoot.turnShooterOff(),
-                        goToIntakeSixth,
                         new ParallelAction(
-                                intake.turnIntakeOn(1.0),
+                                intake.turnIntakeOn(2.5),
                                 intakeSixth
-                        ),
-                        shoot.turnShooterOn(1100),
-                        goToShootSixth,
-                        intake.bringArtifacts(),
-                        shoot.turnShooterOff()
-//                        goToFinalPosition
+                        )
                 )
         );
     }

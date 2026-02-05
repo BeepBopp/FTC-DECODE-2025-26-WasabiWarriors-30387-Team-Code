@@ -35,11 +35,12 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
     final double LIMELIGHT_TURN_GAIN = 0.05;
     final double LIMELIGHT_TARGET_X = 0.0;
     final double LIMELIGHT_TARGET_Y = 0.0;
-    final double LIMELIGHT_TOLERANCE = 1.0;
+    final double LIMELIGHT_TOLERANCE = 1.5;
+    final double APRILTAG_20_OFFSET = -3.0; // 3 degrees to the LEFT for ID 20
     final double CLOSE_SHOOTING_VELOCITY = 1000.0;
     final double MEDIUM_SHOOTING_VELOCITY = 1200.0;
-    final double LEFT_FAR_SHOOTING_VELOCITY = 1550.0;
-    final double RIGHT_FAR_SHOOTING_VELOCITY = 1450.0;
+    final double LEFT_FAR_SHOOTING_VELOCITY = 1500.0;
+    final double RIGHT_FAR_SHOOTING_VELOCITY = 1400.0;
     final double FULL_POWER = 1.0;
     final double STOP_POWER = 0.0;
     final double FEEDING_POWER = 0.8;
@@ -82,6 +83,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
     boolean isLimelightAligning = false;
     boolean limelightAlignmentComplete = false;
     boolean limelightHasRumbled = false;
+    boolean isWithinTolerance = false;
     
     ElapsedTime autoTimer = new ElapsedTime();
     ElapsedTime leftFirstAutoTimer = new ElapsedTime();
@@ -90,6 +92,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
     ElapsedTime intakeDelayTimer = new ElapsedTime();
     ElapsedTime chuteTimer = new ElapsedTime();
     ElapsedTime limelightAlignTimer = new ElapsedTime();
+    ElapsedTime toleranceTimer = new ElapsedTime();
 
     @Override
     public void runOpMode() {
@@ -154,6 +157,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
                 isLimelightAligning = true;
                 limelightAlignmentComplete = false;
                 limelightHasRumbled = false;
+                isWithinTolerance = false;
                 limelightAlignTimer.reset();
             }
             lastDriverA = gamepad2.a;
@@ -163,6 +167,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
                 isLimelightAligning = false;
                 limelightAlignmentComplete = false;
                 limelightHasRumbled = false;
+                isWithinTolerance = false;
             }
             lastDriverY = gamepad2.y;
             
@@ -171,8 +176,9 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
                 if (limelightResult != null && limelightResult.isValid()) {
                     // Check if we're tracking the correct AprilTag (ID 20 or 24)
                     boolean isCorrectTag = false;
+                    int tagId = 0;
                     if (limelightResult.getFiducialResults() != null && !limelightResult.getFiducialResults().isEmpty()) {
-                        int tagId = (int) limelightResult.getFiducialResults().get(0).getFiducialId();
+                        tagId = (int) limelightResult.getFiducialResults().get(0).getFiducialId();
                         isCorrectTag = (tagId == 20 || tagId == 24);
                     }
                     
@@ -186,38 +192,55 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
                         // Correct tag found - proceed with alignment
                         // Vision Rotation ONLY (Face the Tag) - no driving or strafing
                         double tx = limelightResult.getTx();
-                        double turn = tx * LIMELIGHT_TURN_GAIN;
-                    
-                    // Check if aligned
-                    if (Math.abs(tx) < LIMELIGHT_TOLERANCE && !limelightHasRumbled) {
-                        gamepad1.rumble(500);
-                        gamepad2.rumble(500);
-                        limelightHasRumbled = true;
-                        limelightAlignmentComplete = true;
                         
-                        // Automatically trigger bringArtifacts
-                        isAutoRunning = true;
-                        leftBlockerToggle = false;
-                        rightBlockerToggle = false;
-                        chuteOscillationState = false;
-                        artifactFeedingStarted = false;
-                        autoTimer.reset();
-                        chuteTimer.reset();
+                        // Apply offset for AprilTag ID 20 only
+                        double targetOffset = (tagId == 20) ? APRILTAG_20_OFFSET : 0.0;
+                        double adjustedTx = tx + targetOffset;
                         
-                        // Stop Limelight alignment
-                        isLimelightAligning = false;
-                    }
+                        double turn = adjustedTx * LIMELIGHT_TURN_GAIN;
                     
-                    // Apply only rotation at specified speed (no drive or strafe)
-                    double leftFrontPower = turn * LIMELIGHT_SPEED;
-                    double leftBackPower = turn * LIMELIGHT_SPEED;
-                    double rightFrontPower = -turn * LIMELIGHT_SPEED;
-                    double rightBackPower = -turn * LIMELIGHT_SPEED;
-                    
-                    leftFrontDrive.setPower(leftFrontPower);
-                    leftBackDrive.setPower(leftBackPower);
-                    rightFrontDrive.setPower(rightFrontPower);
-                    rightBackDrive.setPower(rightBackPower);
+                        // Check if currently within tolerance (using adjusted tx)
+                        if (Math.abs(adjustedTx) < LIMELIGHT_TOLERANCE) {
+                            // Within tolerance - start/continue timer
+                            if (!isWithinTolerance) {
+                                isWithinTolerance = true;
+                                toleranceTimer.reset();
+                            }
+                            
+                            // Check if we've been within tolerance for 0.2 seconds
+                            if (toleranceTimer.seconds() >= 0.2 && !limelightHasRumbled) {
+                                gamepad1.rumble(500);
+                                gamepad2.rumble(500);
+                                limelightHasRumbled = true;
+                                limelightAlignmentComplete = true;
+                                
+                                // Automatically trigger bringArtifacts
+                                isAutoRunning = true;
+                                leftBlockerToggle = false;
+                                rightBlockerToggle = false;
+                                chuteOscillationState = false;
+                                artifactFeedingStarted = false;
+                                autoTimer.reset();
+                                chuteTimer.reset();
+                                
+                                // Stop Limelight alignment
+                                isLimelightAligning = false;
+                            }
+                        } else {
+                            // Outside tolerance - reset timer
+                            isWithinTolerance = false;
+                        }
+                        
+                        // Apply only rotation at specified speed (no drive or strafe)
+                        double leftFrontPower = turn * LIMELIGHT_SPEED;
+                        double leftBackPower = turn * LIMELIGHT_SPEED;
+                        double rightFrontPower = -turn * LIMELIGHT_SPEED;
+                        double rightBackPower = -turn * LIMELIGHT_SPEED;
+                        
+                        leftFrontDrive.setPower(leftFrontPower);
+                        leftBackDrive.setPower(leftBackPower);
+                        rightFrontDrive.setPower(rightFrontPower);
+                        rightBackDrive.setPower(rightBackPower);
                     }
                     
                 } else {
@@ -493,3 +516,4 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
         rightBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 }
+

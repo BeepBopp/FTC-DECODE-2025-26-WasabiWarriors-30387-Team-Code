@@ -32,8 +32,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import java.util.Arrays;
 
 @Config
-@Autonomous(name = "Far Red Side Auto v1", group = "Autonomous")
-public class RightFarV2 extends LinearOpMode {
+@Autonomous(name = "Far Red Side Auto", group = "Autonomous")
+public class FarRedSideAuto extends LinearOpMode {
     public class Shoot {
         private DcMotorEx leftShooter, rightShooter;
         private DcMotor intake, chute;
@@ -238,6 +238,23 @@ public class RightFarV2 extends LinearOpMode {
                 LLResult limelightResult = limelight.getLatestResult();
 
                 if (limelightResult != null && limelightResult.isValid()) {
+                    if (limelightResult.getFiducialResults() == null ||
+                            limelightResult.getFiducialResults().isEmpty() ||
+                            limelightResult.getFiducialResults().get(0).getFiducialId() != 24) {
+                        leftFrontDrive.setPower(0);
+                        leftBackDrive.setPower(0);
+                        rightFrontDrive.setPower(0);
+                        rightBackDrive.setPower(0);
+
+                        if (alignTimer.seconds() > LIMELIGHT_TIMEOUT) {
+                            packet.put("Limelight Status", "TIMEOUT - Tag 24 Not Found");
+                            return false;
+                        }
+
+                        packet.put("Limelight Status", "SEARCHING FOR TAG 24");
+                        return true;
+                    }
+
                     double tx = limelightResult.getTx();
                     double turn = tx * LIMELIGHT_TURN_GAIN;
 
@@ -253,7 +270,7 @@ public class RightFarV2 extends LinearOpMode {
                             rightFrontDrive.setPower(0);
                             rightBackDrive.setPower(0);
 
-                            packet.put("Limelight Status", "ALIGNED (held 0.2s)");
+                            packet.put("Limelight Status", "ALIGNED TO TAG 24 (held 0.2s)");
                             packet.put("TX Offset", tx);
                             packet.put("Hold Time", toleranceTimer.seconds());
                             return false;
@@ -264,7 +281,7 @@ public class RightFarV2 extends LinearOpMode {
                         rightFrontDrive.setPower(0);
                         rightBackDrive.setPower(0);
 
-                        packet.put("Limelight Status", "HOLDING ALIGNMENT");
+                        packet.put("Limelight Status", "HOLDING ALIGNMENT ON TAG 24");
                         packet.put("TX Offset", tx);
                         packet.put("Hold Time", String.format("%.2f/%.2f", toleranceTimer.seconds(), TOLERANCE_HOLD_TIME));
                         return true;
@@ -281,7 +298,7 @@ public class RightFarV2 extends LinearOpMode {
                         rightFrontDrive.setPower(rightFrontPower);
                         rightBackDrive.setPower(rightBackPower);
 
-                        packet.put("Limelight Status", "ALIGNING");
+                        packet.put("Limelight Status", "ALIGNING TO TAG 24");
                         packet.put("TX Offset", tx);
                         packet.put("Turn Power", turn);
                         return true;

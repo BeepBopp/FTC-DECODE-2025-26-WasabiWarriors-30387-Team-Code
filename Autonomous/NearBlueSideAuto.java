@@ -1,11 +1,10 @@
-// OPTIMAL BATTERY: 13.3 - 13.8 V
-
 package org.firstinspires.ftc.teamcode;
 
 import androidx.annotation.NonNull;
 
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
+import com.acmerobotics.roadrunner.AccelConstraint;
 import com.acmerobotics.roadrunner.Action;
 import com.acmerobotics.roadrunner.AngularVelConstraint;
 import com.acmerobotics.roadrunner.MinVelConstraint;
@@ -17,6 +16,7 @@ import com.acmerobotics.roadrunner.SleepAction;
 import com.acmerobotics.roadrunner.TranslationalVelConstraint;
 import com.acmerobotics.roadrunner.TurnConstraints;
 import com.acmerobotics.roadrunner.Vector2d;
+import com.acmerobotics.roadrunner.VelConstraint;
 import com.acmerobotics.roadrunner.ftc.Actions;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -31,7 +31,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import java.util.Arrays;
 
 @Config
-@Autonomous(name = "New Near Blue Side Auto", group = "Autonomous")
+@Autonomous(name = "Near Blue Side Auto", group = "Autonomous")
 public class NewNearBlueSideAuto extends LinearOpMode {
     public class Shoot {
         private DcMotorEx leftShooter, rightShooter;
@@ -172,13 +172,13 @@ public class NewNearBlueSideAuto extends LinearOpMode {
             @Override
             public boolean run(@NonNull TelemetryPacket packet) {
                 if (!initialized) {
-                    timer = new ElapsedTime(); // FIX: Initialize the timer here!
+                    timer = new ElapsedTime();
                     leftBlocker.setPosition(0.922);
                     rightBlocker.setPosition(0.372);
                     initialized = true;
                 }
 
-                if (timer.seconds() < 0.8) {
+                if (timer.seconds() < 0.75) {
                     return true;
                 } else {
                     leftBlocker.setPosition(0.51);
@@ -207,9 +207,9 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                 .strafeToLinearHeading(new Vector2d(38.0, 51.0), Math.toRadians(166))
                 .build();
         Action intakeSecond = drive.actionBuilder(new Pose2d(38.0, 51.0, Math.toRadians(166)))
-                .lineToY(61.0)
+                .lineToY(60.0)
                 .build();
-        Action goToShootSecond = drive.actionBuilder(new Pose2d(38.0, 61.0, Math.toRadians(166)))
+        Action goToShootSecond = drive.actionBuilder(new Pose2d(38.0, 60.0, Math.toRadians(166)))
                 .lineToY(58.0)
                 .strafeToLinearHeading(new Vector2d(58.0, 88.0), Math.toRadians(82))
                 .build();
@@ -227,7 +227,7 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                 .build();
         Action intakeFourth = drive.actionBuilder(new Pose2d(43.0, 76.0, Math.toRadians(104)))
                 .strafeToLinearHeading(new Vector2d(6.0, 48.0), Math.toRadians(140))
-                .strafeToLinearHeading(new Vector2d(-7.5, 60.0), Math.toRadians(140)) // -2.0
+                .strafeToLinearHeading(new Vector2d(-7.5, 60.0), Math.toRadians(140))
                 .build();
         Action goToShootFourth = drive.actionBuilder(new Pose2d(-7.5, 60.0, Math.toRadians(140)))
                 .lineToY(54.0)
@@ -252,13 +252,27 @@ public class NewNearBlueSideAuto extends LinearOpMode {
         Action intakeSixth = drive.actionBuilder(new Pose2d(130.0, 80.0, Math.toRadians(10)))
                 .turnTo(Math.toRadians(102.5),
                         new TurnConstraints(Math.PI, -4 * Math.PI, 4 * Math.PI))
-                .lineToY(185.0,
+                .lineToY(190.0,
                         new TranslationalVelConstraint(300),
                         new ProfileAccelConstraint(-180, 300)
                 )
                 .build();
-        Action goToShootSixth = drive.actionBuilder(new Pose2d(130.0, 185.0, Math.toRadians(113)))
-                .strafeToLinearHeading(new Vector2d(130.0, 80.0), Math.toRadians(10))
+        Action goToShootSixth = drive.actionBuilder(new Pose2d(130.0, 190.0, Math.toRadians(102.5)))
+                .strafeToLinearHeading(new Vector2d(60.0, -35.0), Math.toRadians(-50), // (60, -30, -75)
+                        new TranslationalVelConstraint(300),
+                        new ProfileAccelConstraint(-180, 300))
+                .build();
+        Action resetPoseAgainBeforeTurn = new Action() {
+            @Override
+            public boolean run(@NonNull TelemetryPacket packet) {
+                drive.localizer.setPose(new Pose2d(60.0, -35.0, Math.toRadians(-50)));
+                return false;
+            }
+        };
+        Action goToFinalPosition = drive.actionBuilder(new Pose2d(60.0, -35.0, Math.toRadians(-50)))
+                .strafeToLinearHeading(new Vector2d(80.0, -35.0), Math.toRadians(-50), // (70, -35, -75)
+                        new TranslationalVelConstraint(300),
+                        new ProfileAccelConstraint(-180, 300))
                 .build();
 
         waitForStart();
@@ -269,7 +283,7 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                 new SequentialAction(
                         shoot.turnShooterOn(1075),
                         goToShootFirst,
-                        new SleepAction(0.2),
+                        //new SleepAction(0.2),
                         intake.bringArtifacts(),
                         shoot.turnShooterOff(),
                         goToIntakeSecond,
@@ -286,7 +300,7 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                                 intake.turnIntakeOn(1.0),
                                 intakeThird
                         ),
-                        new SleepAction(0.3),
+                        new SleepAction(0.4),
                         shoot.turnShooterOn(1125),
                         goToShootThird,
                         intake.bringArtifacts(),
@@ -311,10 +325,13 @@ public class NewNearBlueSideAuto extends LinearOpMode {
                                 intake.turnIntakeOn(2.0),
                                 intakeSixth
                         ),
-                        shoot.turnShooterOn(1150)
-//                        goToShootSixth,
-//                        intake.bringArtifacts(),
-//                        shoot.turnShooterOff()
+                        intake.turnIntakeOn(1.0),
+                        shoot.turnShooterOn(1150),
+                        goToShootSixth,
+                        intake.bringArtifacts(),
+                        shoot.turnShooterOff(),
+                        resetPoseAgainBeforeTurn,
+                        goToFinalPosition
                 )
         );
     }

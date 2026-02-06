@@ -47,7 +47,7 @@ public class DECODETeleopWithLimelight extends LinearOpMode {
     final double SPIT_POWER = 0.6;
     final double LEFT_BLOCKER_STOPPING_POSITION = 0.51;
     final double LEFT_BLOCKER_RELEASE_POSITION = 0.922;
-    final double RIGHT_BLOCKER_STOPPING_POSITION = 0.82;
+    final double RIGHT_BLOCKER_STOPPING_POSITION = 0.805;
     final double RIGHT_BLOCKER_RELEASE_POSITION = 0.372;
     final double CHUTE_STOP = 0.0;
     final double CHUTE_OSCILLATION_INTERVAL = 0.15; 

@@ -204,6 +204,7 @@ public class FarBlueSideAuto extends LinearOpMode {
         private final double LIMELIGHT_TIMEOUT = 1.0;
         private final double LIMELIGHT_SPEED = 1.0;
         private final double TOLERANCE_HOLD_TIME = 0.2;
+        private final double APRILTAG_20_OFFSET = -3.0; // 3 degrees to the LEFT for ID 20
 
         public Align(HardwareMap hardwareMap) {
             limelight = hardwareMap.get(Limelight3A.class, "limelight");
@@ -256,9 +257,12 @@ public class FarBlueSideAuto extends LinearOpMode {
                     }
 
                     double tx = limelightResult.getTx();
-                    double turn = tx * LIMELIGHT_TURN_GAIN;
 
-                    if (Math.abs(tx) < LIMELIGHT_TOLERANCE) {
+                    // Apply 3-degree left offset for AprilTag ID 20
+                    double adjustedTx = tx + APRILTAG_20_OFFSET;
+                    double turn = adjustedTx * LIMELIGHT_TURN_GAIN;
+
+                    if (Math.abs(adjustedTx) < LIMELIGHT_TOLERANCE) {
                         if (!isWithinTolerance) {
                             isWithinTolerance = true;
                             toleranceTimer.reset();
@@ -272,6 +276,7 @@ public class FarBlueSideAuto extends LinearOpMode {
 
                             packet.put("Limelight Status", "ALIGNED TO TAG 20 (held 0.2s)");
                             packet.put("TX Offset", tx);
+                            packet.put("Adjusted TX", adjustedTx);
                             packet.put("Hold Time", toleranceTimer.seconds());
                             return false;
                         }
@@ -283,6 +288,7 @@ public class FarBlueSideAuto extends LinearOpMode {
 
                         packet.put("Limelight Status", "HOLDING ALIGNMENT ON TAG 20");
                         packet.put("TX Offset", tx);
+                        packet.put("Adjusted TX", adjustedTx);
                         packet.put("Hold Time", String.format("%.2f/%.2f", toleranceTimer.seconds(), TOLERANCE_HOLD_TIME));
                         return true;
                     } else {
@@ -300,6 +306,7 @@ public class FarBlueSideAuto extends LinearOpMode {
 
                         packet.put("Limelight Status", "ALIGNING TO TAG 20");
                         packet.put("TX Offset", tx);
+                        packet.put("Adjusted TX", adjustedTx);
                         packet.put("Turn Power", turn);
                         return true;
                     }
